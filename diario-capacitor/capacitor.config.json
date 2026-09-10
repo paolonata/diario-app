@@ -1,0 +1,8 @@
+{
+  "appId": "com.paolo.diario",
+  "appName": "Diario",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0d1017" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Diario" />
+<title>Diario</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' rx='228' fill='%230d1017'/%3E%3Cpath d='M150 512C150 380 330 380 330 512 330 630 190 640 200 500 210 380 400 360 430 500 450 590 350 640 330 560 315 500 420 470 480 505 560 550 640 480 730 505 800 524 850 512 890 512' fill='none' stroke='%23c8a15a' stroke-width='46' stroke-linecap='round'/%3E%3Ccircle cx='890' cy='512' r='34' fill='%23c8a15a'/%3E%3C/svg%3E" />
+<style>
+:root{
+  --bg:#0d1017;--bg-raised:#151a24;--bg-input:#1c222f;--line:#252c3b;
+  --ink:#e9e6df;--ink-soft:#98a0af;--ink-faint:#5a616f;
+  --accent:#c8a15a;--accent-dim:#8a6f3d;--accent-soft:rgba(200,161,90,.12);
+  --flow:#6fa8b8;--flow-dim:rgba(111,168,184,.14);
+  --ok:#7fae7a;--ok-dim:rgba(127,174,122,.15);
+  --danger:#cf6b5a;--radius:16px;
+  --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font-body);height:100%;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#app{min-height:100vh;display:flex;flex-direction:column;max-width:520px;margin:0 auto}
+
+/* onde */
+.flow-band{position:relative;height:48px;overflow:hidden;flex:none}
+.flow-band svg{position:absolute;inset:0;width:200%;height:100%}
+.flow-band path{fill:none;stroke-width:1.5;opacity:.5}
+.w1{stroke:var(--flow);animation:drift 26s linear infinite}
+.w2{stroke:var(--accent-dim);animation:drift 38s linear infinite reverse;opacity:.35}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.w1,.w2{animation:none}}
+
+/* lock */
+.lock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:26px;min-height:100vh}
+.lock-brand{font-family:var(--font-serif);font-size:36px;letter-spacing:.5px}
+.lock-brand span{color:var(--accent)}
+.lock-sub{color:var(--ink-soft);font-size:15px;text-align:center;margin-top:-14px;line-height:1.5;max-width:290px}
+.pin-dots{display:flex;gap:16px;height:18px;align-items:center}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--accent-dim);transition:transform .12s,background .12s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.08)}
+.pin-error{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,74px);gap:16px;margin-top:4px}
+.key{height:74px;width:74px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--line);color:var(--ink);font-size:28px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s,transform .06s}
+.key:active{background:var(--bg-input);transform:scale(.94)}
+.key.blank{background:none;border:none;pointer-events:none}
+.key.action{font-size:20px;color:var(--ink-soft)}
+.lock-msg{color:var(--danger);font-size:14px;height:18px;text-align:center}
+.lock-cancel{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:8px}
+
+/* struttura */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px;position:sticky;top:0;background:var(--bg);z-index:5}
+.topbar h1{font-family:var(--font-serif);font-size:24px;font-weight:500}
+.topbar h1 span{color:var(--accent)}
+.icon-btn{background:none;border:none;color:var(--ink-soft);font-size:21px;cursor:pointer;padding:6px;line-height:1}
+.tabs{display:flex;gap:8px;padding:6px 16px 12px}
+.tab{flex:1;background:var(--bg-raised);border:1px solid var(--line);color:var(--ink-soft);border-radius:22px;padding:10px 0;font-size:14px;cursor:pointer;text-align:center}
+.tab.active{background:var(--accent-soft);border-color:var(--accent-dim);color:var(--accent);font-weight:600}
+.stats{display:flex;gap:8px;padding:0 16px 12px}
+.stat{flex:1;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:10px 10px}
+.stat-num{font-family:var(--font-serif);font-size:21px;color:var(--accent)}
+.stat-num.flow-c{color:var(--flow)}
+.stat-num.ok-c{color:var(--ok)}
+.stat-label{font-size:11px;color:var(--ink-soft);margin-top:1px;line-height:1.3}
+.nudge{margin:0 16px 12px;background:var(--flow-dim);border:1px solid rgba(111,168,184,.25);border-radius:var(--radius);padding:13px 16px;cursor:pointer;transition:transform .1s}
+.nudge:active{transform:scale(.985)}
+.nudge-eyebrow{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--flow);margin-bottom:4px}
+.nudge-text{font-family:var(--font-serif);font-size:16px;line-height:1.45}
+.list{flex:1;padding:0 16px 120px;display:flex;flex-direction:column;gap:10px}
+.list-title{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);margin:8px 4px 0}
+.entry{background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px 13px;cursor:pointer;transition:border-color .15s}
+.entry:active{border-color:var(--accent-dim)}
+.entry-date{color:var(--accent);font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+.entry-title{font-family:var(--font-serif);font-size:18px;margin:5px 0 4px}
+.entry-preview{color:var(--ink-soft);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.entry-meta{font-size:11px;color:var(--ink-faint);margin-top:8px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--ink-faint);padding:40px 24px;text-align:center}
+.empty-serif{font-family:var(--font-serif);font-size:21px;color:var(--ink-soft);line-height:1.5}
+.fab{position:fixed;right:calc(50% - 260px + 20px);bottom:calc(24px + env(safe-area-inset-bottom));height:56px;padding:0 24px;border-radius:28px;background:var(--accent);color:#1a1204;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.45);z-index:6}
+@media(max-width:560px){.fab{right:20px}}
+.fab:active{transform:scale(.95)}
+
+/* decisioni */
+.dcard{background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;cursor:pointer}
+.dcard:active{border-color:var(--accent-dim)}
+.dcard.decided{border-color:rgba(127,174,122,.35)}
+.badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:12px;margin-bottom:8px;letter-spacing:.3px}
+.badge.open{background:var(--flow-dim);color:var(--flow)}
+.badge.decided{background:var(--ok-dim);color:var(--ok)}
+.dq{font-family:var(--font-serif);font-size:18px;line-height:1.4}
+.dmeta{font-size:12px;color:var(--ink-faint);margin-top:8px}
+.dview{flex:1;padding:6px 20px 120px;display:flex;flex-direction:column;gap:14px}
+.dsection-t{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint)}
+.pc-wrap{display:flex;gap:10px}
+.pc-col{flex:1;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.pc-col h4{font-size:13px;margin-bottom:8px;font-weight:600}
+.pc-col.pro h4{color:var(--ok)}.pc-col.con h4{color:var(--danger)}
+.pc-item{font-size:14px;color:var(--ink-soft);line-height:1.45;padding:5px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px}
+.pc-item:last-child{border-bottom:none}
+.pc-x{color:var(--ink-faint);cursor:pointer;flex:none}
+.pc-add{display:flex;gap:8px;margin-top:8px}
+.pc-add input{flex:1;background:var(--bg-input);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 10px;font-size:14px;outline:none;min-width:0}
+.pc-add button{background:none;border:1px solid var(--line);border-radius:10px;color:var(--accent);padding:0 12px;font-size:18px;cursor:pointer}
+.big-btn{border:none;border-radius:var(--radius);padding:16px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
+.big-btn.gold{background:var(--accent);color:#1a1204}
+.big-btn.ghost{background:var(--bg-raised);border:1px solid var(--line);color:var(--ink-soft)}
+.big-btn.green{background:var(--ok);color:#0e1a0d}
+.big-btn:active{transform:scale(.98)}
+.field{background:var(--bg-input);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);padding:13px 14px;font-size:16px;outline:none;width:100%;font-family:var(--font-body)}
+textarea.field{min-height:110px;resize:none;line-height:1.6}
+.sealed{background:var(--ok-dim);border:1px solid rgba(127,174,122,.35);border-radius:var(--radius);padding:16px}
+.sealed .dsection-t{color:var(--ok)}
+.sealed-text{font-family:var(--font-serif);font-size:19px;line-height:1.45;margin-top:6px}
+.sealed-reason{font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+.gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px;gap:16px;min-height:80vh}
+.gate-title{font-family:var(--font-serif);font-size:26px;line-height:1.35;text-align:center}
+.gate-sub{color:var(--ink-soft);font-size:15px;text-align:center;line-height:1.55}
+
+/* editor / sheet / toast */
+.editor{flex:1;display:flex;flex-direction:column;min-height:100vh}
+.editor-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.editor-body{flex:1;padding:10px 22px 40px;display:flex;flex-direction:column}
+.editor-date{color:var(--accent);font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+.editor-count{font-size:12px;color:var(--ink-faint);transition:color .3s}
+.editor-count.alive{color:var(--flow)}
+.editor-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.editor-title{background:none;border:none;color:var(--ink);width:100%;font-family:var(--font-serif);font-size:26px;outline:none;margin-bottom:8px}
+.editor-title::placeholder{color:var(--ink-faint)}
+.editor-text{background:none;border:none;color:var(--ink);width:100%;flex:1;font-size:17px;line-height:1.7;outline:none;resize:none;min-height:300px;font-family:var(--font-body)}
+.editor-text::placeholder{color:var(--ink-faint)}
+.text-btn{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:6px 4px}
+.text-btn.muted{color:var(--ink-soft)}.text-btn.danger{color:var(--danger)}
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--bg-input);color:var(--ink);border:1px solid var(--line);padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:40;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;display:flex;align-items:flex-end;opacity:0;transition:opacity .2s}
+.sheet-overlay.show{opacity:1}
+.sheet{width:100%;max-width:520px;margin:0 auto;background:var(--bg-raised);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid var(--line);padding:10px 16px calc(24px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s}
+.sheet-overlay.show .sheet{transform:translateY(0)}
+.sheet-grip{width:40px;height:4px;border-radius:2px;background:var(--ink-faint);margin:6px auto 14px}
+.sheet-title{font-family:var(--font-serif);font-size:18px;margin:0 4px 6px}
+.sheet-item{display:flex;flex-direction:column;gap:2px;padding:13px 8px;border-radius:12px;cursor:pointer}
+.sheet-item:active{background:var(--bg-input)}
+.sheet-item b{font-size:16px;font-weight:500}
+.sheet-item span{font-size:13px;color:var(--ink-soft);line-height:1.4}
+.sheet-item.danger b{color:var(--danger)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   Diario — pensa, decidi, resta.
+   Per chi rimugina: scrivere per svuotare, decidere per chiudere.
+   Tutto locale, cifrato AES-GCM 256 (PBKDF2 200k dal PIN).
+   ============================================================ */
+
+const Store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ alert('Impossibile salvare. Se sei in navigazione privata, i dati non vengono conservati.'); } },
+  remove(k){ try { localStorage.removeItem(k); } catch {} },
+};
+const KEY_VERIFIER='diario.verifier',KEY_SALT='diario.salt',KEY_ENTRIES='diario.entries',KEY_DECISIONS='diario.decisions';
+
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptJSON(key,obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(obj)));
+  return JSON.stringify({iv:b64(iv),ct:b64(ct)});
+}
+async function decryptJSON(key,blob){
+  const {iv,ct}=JSON.parse(blob);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(iv)},key,unb64(ct));
+  return JSON.parse(dec.decode(pt));
+}
+
+const app=document.getElementById('app');
+let cryptoKey=null,entries=[],dstore={list:[],letGo:0},editing=null,activeTab='pensieri';
+
+function toast(m){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400);}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});}
+function wordCount(s=''){const m=s.trim().match(/\S+/g);return m?m.length:0;}
+function dayKey(ts){const d=new Date(ts);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;}
+function daysSince(ts){return Math.floor((Date.now()-ts)/86400000);}
+
+function computeStreak(){
+  const days=new Set(entries.map(e=>dayKey(e.created)));
+  if(!days.size)return 0;
+  let streak=0;const d=new Date();
+  if(!days.has(dayKey(d.getTime()))) d.setDate(d.getDate()-1);
+  while(days.has(dayKey(d.getTime()))){streak++;d.setDate(d.getDate()-1);}
+  return streak;
+}
+function totalWords(){return entries.reduce((n,e)=>n+wordCount(e.title)+wordCount(e.body),0);}
+function wroteToday(){return entries.some(e=>dayKey(e.created)===dayKey(Date.now()));}
+function decidedCount(){return dstore.list.filter(d=>d.status==='decided').length;}
+
+const PROMPTS=[
+ 'Cosa ti gira in testa proprio adesso? Scrivilo così com\u2019è, senza ordinarlo.',
+ 'Qual è il pensiero che oggi è tornato più volte? Mettilo su carta e lascialo lì.',
+ 'Stai rimuginando su qualcosa di già deciso? Scrivi perché ci stai tornando.',
+ 'C\u2019è qualcosa che stai rimandando? Descrivi solo il primo passo.',
+ 'Che cosa ti ha fatto sorridere oggi, anche di poco?',
+ 'Se potessi togliere un peso dalla testa stasera, quale sarebbe?',
+ 'Il pensiero che rigiri: è un problema da risolvere o solo rumore da scaricare?',
+ 'Cosa diresti a te stesso di stamattina, ora che sai com\u2019è andata?',
+ 'Scrivi la cosa che non stai dicendo a nessuno.',
+ 'Quale decisione stai evitando di prendere? Nominarla è già metà.',
+ 'Che cosa vorresti lasciare fuori dalla porta prima di dormire?',
+ 'Se la tua mente fosse un cielo, che tempo fa lì dentro adesso?',
+ 'Qual è la piccola vittoria di oggi che nessuno ha visto?',
+ 'Sta succedendo davvero, o sta succedendo solo nella tua testa?',
+];
+function todayPrompt(){const d=new Date();const seed=d.getFullYear()*372+(d.getMonth()+1)*31+d.getDate();return PROMPTS[seed%PROMPTS.length];}
+
+function boot(){ Store.get(KEY_VERIFIER)?renderLock():renderSetup(); }
+
+/* ---- keypad / PIN ---- */
+function dotsHTML(n){return [0,1,2,3].map(i=>`<div class="pin-dot ${i<n?'filled':''}"></div>`).join('');}
+function keypadHTML(){const keys=[1,2,3,4,5,6,7,8,9,'blank',0,'del'];return `<div class="keypad">${keys.map(k=>{if(k==='blank')return `<div class="key blank"></div>`;if(k==='del')return `<button class="key action" data-key="del">⌫</button>`;return `<button class="key" data-key="${k}">${k}</button>`;}).join('')}</div>`;}
+function bindKeypad(onDigit,onDel){document.querySelectorAll('.key[data-key]').forEach(btn=>btn.addEventListener('click',()=>{const k=btn.dataset.key;k==='del'?onDel():onDigit(k);}));}
+function pinScreen({title,sub,onComplete,onCancel}){
+  app.innerHTML=`<div class="lock"><div class="lock-brand">${title}</div><p class="lock-sub">${sub}</p><div class="pin-dots" id="dots">${dotsHTML(0)}</div><div class="lock-msg" id="msg"></div>${keypadHTML()}${onCancel?'<button class="lock-cancel" id="cancel">Annulla</button>':''}</div>`;
+  let pin='';
+  const dotsEl=()=>document.getElementById('dots');
+  const dots=()=>dotsEl().innerHTML=dotsHTML(pin.length);
+  const msg=m=>document.getElementById('msg').textContent=m||'';
+  if(onCancel)document.getElementById('cancel').onclick=onCancel;
+  bindKeypad(d=>{if(pin.length<4){pin+=d;dots();if(pin.length===4)setTimeout(done,150);}},()=>{pin=pin.slice(0,-1);dots();});
+  async function done(){
+    const res=await onComplete(pin);
+    if(res!==true){dotsEl().classList.add('pin-error');msg(res||'Riprova');setTimeout(()=>{pin='';dots();dotsEl().classList.remove('pin-error');msg('');},750);}
+  }
+}
+function renderSetup(){
+  let first=null;
+  const step1=()=>pinScreen({title:'Dia<span>rio</span>',sub:'Il posto dove i pensieri si scrivono,<br>le decisioni si prendono, e si resta.<br>Scegli un PIN di 4 cifre.',onComplete:async(pin)=>{first=pin;step2();return true;}});
+  const step2=()=>pinScreen({title:'Dia<span>rio</span>',sub:'Ripeti il PIN per conferma.',onComplete:async(pin)=>{if(pin!==first){step1();return 'I PIN non coincidono';}await createVault(pin);return true;}});
+  step1();
+}
+async function createVault(pin){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const key=await deriveKey(pin,salt);
+  Store.set(KEY_SALT,b64(salt));
+  Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+  Store.set(KEY_ENTRIES,await encryptJSON(key,[]));
+  Store.set(KEY_DECISIONS,await encryptJSON(key,{list:[],letGo:0}));
+  cryptoKey=key;entries=[];dstore={list:[],letGo:0};renderHome();
+}
+function renderLock(){
+  pinScreen({title:'Dia<span>rio</span>',sub:'Inserisci il PIN',onComplete:async(pin)=>{
+    const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+    try{
+      await decryptJSON(key,Store.get(KEY_VERIFIER));
+      cryptoKey=key;
+      entries=await decryptJSON(key,Store.get(KEY_ENTRIES));
+      const rawD=Store.get(KEY_DECISIONS);
+      dstore=rawD?await decryptJSON(key,rawD):{list:[],letGo:0};
+      renderHome();return true;
+    }catch{return 'PIN errato';}
+  }});
+}
+function lockNow(){cryptoKey=null;entries=[];dstore={list:[],letGo:0};editing=null;renderLock();}
+function startChangePin(){
+  let newPin=null;const back=()=>renderHome();
+  const stepOld=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Inserisci il PIN attuale.',onCancel:back,onComplete:async(pin)=>{
+    const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+    try{await decryptJSON(key,Store.get(KEY_VERIFIER));stepNew();return true;}catch{return 'PIN errato';}
+  }});
+  const stepNew=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Scegli il nuovo PIN di 4 cifre.',onCancel:back,onComplete:async(pin)=>{newPin=pin;stepConfirm();return true;}});
+  const stepConfirm=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Ripeti il nuovo PIN per conferma.',onCancel:back,onComplete:async(pin)=>{
+    if(pin!==newPin){stepNew();return 'I PIN non coincidono';}
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const key=await deriveKey(pin,salt);
+    Store.set(KEY_SALT,b64(salt));
+    Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+    Store.set(KEY_ENTRIES,await encryptJSON(key,entries));
+    Store.set(KEY_DECISIONS,await encryptJSON(key,dstore));
+    cryptoKey=key;toast('PIN aggiornato');renderHome();return true;
+  }});
+  stepOld();
+}
+
+/* ---- persist ---- */
+async function persistEntries(){ Store.set(KEY_ENTRIES,await encryptJSON(cryptoKey,entries)); }
+async function persistDecisions(){ Store.set(KEY_DECISIONS,await encryptJSON(cryptoKey,dstore)); }
+
+/* ---- HOME con tab ---- */
+function flowBandHTML(){
+  return `<div class="flow-band" aria-hidden="true"><svg viewBox="0 0 1040 48" preserveAspectRatio="none">
+    <path class="w1" d="M0,26 C65,14 130,38 195,26 C260,14 325,38 390,26 C455,14 520,38 585,26 C650,14 715,38 780,26 C845,14 910,38 975,26 C1010,20 1025,23 1040,26"/>
+    <path class="w2" d="M0,34 C80,24 160,42 240,34 C320,26 400,44 480,34 C560,24 640,42 720,34 C800,26 880,44 960,34 C1000,30 1020,32 1040,34"/>
+  </svg></div>`;
+}
+function headerHTML(){
+  const streak=computeStreak();
+  return `
+    <div class="topbar"><h1>Dia<span>rio</span></h1><div style="display:flex;gap:2px"><button class="icon-btn" id="menu-btn" title="Impostazioni">⋯</button><button class="icon-btn" id="lock-btn" title="Blocca">🔒</button></div></div>
+    ${flowBandHTML()}
+    <div class="tabs">
+      <div class="tab ${activeTab==='pensieri'?'active':''}" data-tab="pensieri">Pensieri</div>
+      <div class="tab ${activeTab==='decisioni'?'active':''}" data-tab="decisioni">Decisioni</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num">${streak}</div><div class="stat-label">${streak===1?'giorno di fila':'giorni di fila'}${wroteToday()?' ✓':''}</div></div>
+      <div class="stat"><div class="stat-num flow-c">${totalWords().toLocaleString('it-IT')}</div><div class="stat-label">parole liberate</div></div>
+      <div class="stat"><div class="stat-num ok-c">${decidedCount()}</div><div class="stat-label">decisioni prese</div></div>
+      <div class="stat"><div class="stat-num ok-c">${dstore.letGo}</div><div class="stat-label">rimuginii lasciati andare</div></div>
+    </div>`;
+}
+function bindHeader(){
+  document.getElementById('lock-btn').onclick=lockNow;
+  document.getElementById('menu-btn').onclick=openMenu;
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{activeTab=t.dataset.tab;renderHome();});
+}
+function renderHome(){ activeTab==='pensieri'?renderJournal():renderDecisions(); }
+
+/* ---- TAB PENSIERI ---- */
+function renderJournal(){
+  const sorted=[...entries].sort((a,b)=>b.updated-a.updated);
+  const listHTML=sorted.length
+    ?`<div class="list-title">I tuoi pensieri</div>`+sorted.map(e=>{
+        const w=wordCount(e.title)+wordCount(e.body);
+        return `<div class="entry" data-id="${e.id}"><div class="entry-date">${fmtDate(e.updated)}</div><div class="entry-title">${escapeHTML(e.title||'Senza titolo')}</div><div class="entry-preview">${escapeHTML(e.body||'')}</div><div class="entry-meta">${w} parole liberate</div></div>`;
+      }).join('')
+    :`<div class="empty"><div class="empty-serif">La pagina è bianca,<br>la testa no.</div><div>Inizia da qui sotto: bastano due righe.</div></div>`;
+  app.innerHTML=`${headerHTML()}
+    <div class="nudge" id="nudge"><div class="nudge-eyebrow">${wroteToday()?'Ancora qualcosa da dire?':'Spunto di oggi'}</div><div class="nudge-text">${todayPrompt()}</div></div>
+    <div class="list">${listHTML}</div>
+    <button class="fab" id="new-btn">✎&nbsp; Svuota la testa</button>
+    <input type="file" id="import-file" accept=".diario,.txt,application/json,text/plain" style="display:none">`;
+  bindHeader();
+  document.getElementById('new-btn').onclick=()=>openEditor(null);
+  document.getElementById('nudge').onclick=()=>openEditor(null,todayPrompt());
+  document.getElementById('import-file').onchange=onImportFile;
+  document.querySelectorAll('.entry').forEach(el=>el.onclick=()=>openEditor(entries.find(x=>x.id===el.dataset.id)));
+}
+function openEditor(entry,promptHint){
+  editing=entry;const isNew=!entry;const ts=entry?entry.updated:Date.now();
+  const placeholder=promptHint||'Scrivi come viene. Qui non serve ordine.';
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><button class="text-btn" id="save">Salva</button></div>
+    <div class="editor-body">
+      <div class="editor-meta"><div class="editor-date">${fmtDate(ts)}</div><div class="editor-count" id="count"></div></div>
+      <input class="editor-title" id="title" placeholder="Titolo (facoltativo)" value="${entry?escapeAttr(entry.title):''}"/>
+      <textarea class="editor-text" id="body" placeholder="${escapeAttr(placeholder)}">${entry?escapeHTML(entry.body):''}</textarea>
+      ${isNew?'':'<button class="text-btn danger" id="del" style="margin-top:20px;align-self:flex-start">Elimina voce</button>'}
+    </div></div>`;
+  const bodyEl=document.getElementById('body');
+  const countEl=document.getElementById('count');
+  const baseWords=entry?wordCount(entry.title)+wordCount(entry.body):0;
+  const updateCount=()=>{const w=wordCount(document.getElementById('title').value)+wordCount(bodyEl.value);countEl.textContent=w?`${w} parole`:'';countEl.classList.toggle('alive',w>baseWords);};
+  bodyEl.addEventListener('input',updateCount);
+  document.getElementById('title').addEventListener('input',updateCount);
+  updateCount();
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('save').onclick=saveEntry;
+  const d=document.getElementById('del');if(d)d.onclick=deleteEntry;
+}
+async function saveEntry(){
+  const title=document.getElementById('title').value.trim();
+  const body=document.getElementById('body').value.trim();
+  if(!title&&!body){renderHome();return;}
+  const before=editing?wordCount(editing.title)+wordCount(editing.body):0;
+  if(editing){editing.title=title;editing.body=body;editing.updated=Date.now();}
+  else{entries.push({id:rid(),title,body,created:Date.now(),updated:Date.now()});}
+  await persistEntries();
+  const gained=Math.max(0,wordCount(title)+wordCount(body)-before);
+  const streak=computeStreak();
+  if(gained>0)toast(`+${gained} parole liberate · ${streak} ${streak===1?'giorno':'giorni'} di fila`);
+  else toast('Salvato');
+  renderHome();
+}
+async function deleteEntry(){
+  if(!editing)return;
+  if(!confirm('Eliminare definitivamente questa voce?'))return;
+  entries=entries.filter(e=>e.id!==editing.id);
+  await persistEntries();toast('Voce eliminata');renderHome();
+}
+
+/* ---- TAB DECISIONI ---- */
+function renderDecisions(){
+  const open=dstore.list.filter(d=>d.status==='open').sort((a,b)=>b.createdAt-a.createdAt);
+  const done=dstore.list.filter(d=>d.status==='decided').sort((a,b)=>b.decidedAt-a.decidedAt);
+  const openHTML=open.length?`<div class="list-title">In lavorazione</div>`+open.map(d=>
+    `<div class="dcard" data-id="${d.id}"><span class="badge open">Da decidere</span><div class="dq">${escapeHTML(d.question)}</div><div class="dmeta">${d.pros.length} pro · ${d.cons.length} contro</div></div>`).join(''):'';
+  const doneHTML=done.length?`<div class="list-title">Decise · chiuse</div>`+done.map(d=>
+    `<div class="dcard decided" data-id="${d.id}"><span class="badge decided">Deciso ${fmtDate(d.decidedAt)}</span><div class="dq">${escapeHTML(d.question)}</div><div class="dmeta">${d.reopens>0?`riaperta ${d.reopens} ${d.reopens===1?'volta':'volte'} · `:''}${daysSince(d.decidedAt)===0?'oggi':daysSince(d.decidedAt)+' giorni fa'}</div></div>`).join(''):'';
+  const emptyHTML=(!open.length&&!done.length)?`<div class="empty"><div class="empty-serif">Ogni pensiero che rigiri<br>è una decisione che aspetta.</div><div>Metti giù la domanda: pro, contro, e una scelta. Poi si chiude.</div></div>`:'';
+  app.innerHTML=`${headerHTML()}
+    <div class="list">${emptyHTML}${openHTML}${doneHTML}</div>
+    <button class="fab" id="new-d">⚖&nbsp; Nuova decisione</button>`;
+  bindHeader();
+  document.getElementById('new-d').onclick=newDecision;
+  document.querySelectorAll('.dcard').forEach(el=>{
+    el.onclick=()=>{
+      const d=dstore.list.find(x=>x.id===el.dataset.id);
+      d.status==='decided'?ruminationGate(d):openDecision(d);
+    };
+  });
+}
+function newDecision(){
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><span></span></div>
+    <div class="dview" style="justify-content:center;min-height:70vh">
+      <div class="gate-title">Che decisione ti gira in testa?</div>
+      <div class="gate-sub">Scrivila come una domanda. Nominarla è già metà del lavoro.</div>
+      <input class="field" id="dq" placeholder="Es. Compro la stampante 3D adesso o aspetto?"/>
+      <button class="big-btn gold" id="go">Mettiamola sul tavolo</button>
+    </div></div>`;
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('go').onclick=async()=>{
+    const q=document.getElementById('dq').value.trim();
+    if(!q){toast('Scrivi la domanda');return;}
+    const d={id:rid(),question:q,pros:[],cons:[],status:'open',decision:'',reason:'',createdAt:Date.now(),decidedAt:null,reopens:0};
+    dstore.list.push(d);await persistDecisions();openDecision(d);
+  };
+}
+function openDecision(d){
+  const pcItem=(arr,kind)=>arr.map((t,i)=>`<div class="pc-item"><span>${escapeHTML(t)}</span><span class="pc-x" data-kind="${kind}" data-i="${i}">✕</span></div>`).join('')||`<div class="pc-item" style="border:none;color:var(--ink-faint)">—</div>`;
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><button class="text-btn danger" id="ddel">Elimina</button></div>
+    <div class="dview">
+      <div class="dq" style="font-size:22px">${escapeHTML(d.question)}</div>
+      <div class="pc-wrap">
+        <div class="pc-col pro"><h4>Pro</h4><div id="pros">${pcItem(d.pros,'pro')}</div>
+          <div class="pc-add"><input id="pro-in" placeholder="Aggiungi un pro"/><button id="pro-add">+</button></div></div>
+        <div class="pc-col con"><h4>Contro</h4><div id="cons">${pcItem(d.cons,'con')}</div>
+          <div class="pc-add"><input id="con-in" placeholder="Aggiungi un contro"/><button id="con-add">+</button></div></div>
+      </div>
+      <div class="gate-sub" style="text-align:left">Quando i pro e i contro sono sul tavolo, non serve che siano completi: serve che bastino. La lista perfetta non esiste — a un certo punto si sceglie.</div>
+      <button class="big-btn green" id="decide">Ho deciso →</button>
+    </div></div>`;
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('ddel').onclick=async()=>{
+    if(!confirm('Eliminare questa decisione?'))return;
+    dstore.list=dstore.list.filter(x=>x.id!==d.id);
+    await persistDecisions();renderHome();
+  };
+  const add=async(kind)=>{
+    const inp=document.getElementById(kind+'-in');
+    const v=inp.value.trim();if(!v)return;
+    (kind==='pro'?d.pros:d.cons).push(v);
+    await persistDecisions();openDecision(d);
+    setTimeout(()=>document.getElementById(kind+'-in')?.focus(),50);
+  };
+  document.getElementById('pro-add').onclick=()=>add('pro');
+  document.getElementById('con-add').onclick=()=>add('con');
+  document.getElementById('pro-in').addEventListener('keydown',e=>{if(e.key==='Enter')add('pro');});
+  document.getElementById('con-in').addEventListener('keydown',e=>{if(e.key==='Enter')add('con');});
+  document.querySelectorAll('.pc-x').forEach(x=>x.onclick=async(ev)=>{
+    ev.stopPropagation();
+    const kind=x.dataset.kind,i=+x.dataset.i;
+    (kind==='pro'?d.pros:d.cons).splice(i,1);
+    await persistDecisions();openDecision(d);
+  });
+  document.getElementById('decide').onclick=()=>commitScreen(d);
+}
+function commitScreen(d){
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><span></span></div>
+    <div class="dview" style="justify-content:center;min-height:75vh">
+      <div class="dsection-t">La domanda era</div>
+      <div class="dq">${escapeHTML(d.question)}</div>
+      <div class="dsection-t" style="margin-top:8px">La tua decisione</div>
+      <input class="field" id="dec" placeholder="Es. La compro entro fine mese." value="${escapeAttr(d.decision)}"/>
+      <div class="dsection-t" style="margin-top:8px">Perché (per il te di domani che vorrà riaprirla)</div>
+      <textarea class="field" id="reason" placeholder="Scrivi il motivo con le parole di adesso, che ci hai appena pensato bene. Questo testo sarà il tuo argine.">${escapeHTML(d.reason)}</textarea>
+      <button class="big-btn gold" id="seal">Chiudo qui. Deciso.</button>
+      <div class="gate-sub">Decidere non è avere la certezza: è smettere di pagare l\u2019affitto a un pensiero.</div>
+    </div></div>`;
+  document.getElementById('back').onclick=()=>openDecision(d);
+  document.getElementById('seal').onclick=async()=>{
+    const decision=document.getElementById('dec').value.trim();
+    const reason=document.getElementById('reason').value.trim();
+    if(!decision){toast('Scrivi la decisione');return;}
+    if(!reason){toast('Il motivo è il tuo argine: due righe bastano');return;}
+    d.decision=decision;d.reason=reason;d.status='decided';d.decidedAt=Date.now();
+    await persistDecisions();
+    toast('Decisione presa. Ora si va avanti. ✓');
+    activeTab='decisioni';renderHome();
+  };
+}
+/* Il cancello anti-rimuginio: si apre quando tocchi una decisione già presa */
+function ruminationGate(d){
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><span></span></div>
+    <div class="gate">
+      <div class="gate-title">Ci sei già passato.<br>E hai deciso.</div>
+      <div class="sealed">
+        <div class="dsection-t">Il ${fmtDate(d.decidedAt)} hai scelto</div>
+        <div class="sealed-text">${escapeHTML(d.decision)}</div>
+        <div class="sealed-reason"><b>Il tuo motivo, con le tue parole:</b><br>«${escapeHTML(d.reason)}»</div>
+      </div>
+      ${d.reopens>0?`<div class="gate-sub">Hai già riaperto questa decisione ${d.reopens} ${d.reopens===1?'volta':'volte'}. Il punto d\u2019arrivo era sempre lo stesso.</div>`:''}
+      <div class="gate-sub"><b>Una sola domanda:</b> da quel giorno è successo un <b>fatto nuovo e concreto</b> — non un dubbio, non un\u2019ansia, un fatto?</div>
+      <button class="big-btn green" id="letgo">No, è il solito pensiero. Lo lascio andare.</button>
+      <button class="big-btn ghost" id="reopen">Sì, c\u2019è un fatto nuovo → riapri</button>
+    </div></div>`;
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('letgo').onclick=async()=>{
+    dstore.letGo++;await persistDecisions();
+    toast(`Rimuginio lasciato andare · ${dstore.letGo} in totale. Bravo.`);
+    renderHome();
+  };
+  document.getElementById('reopen').onclick=async()=>{
+    const fact=prompt('Scrivi il fatto nuovo (sarà salvato nella decisione):');
+    if(!fact||!fact.trim()){toast('Senza un fatto concreto, resta chiusa.');return;}
+    d.reopens++;d.status='open';
+    d.cons.push('⟲ Fatto nuovo ('+fmtDate(Date.now())+'): '+fact.trim());
+    await persistDecisions();
+    openDecision(d);
+  };
+}
+
+/* ---- menu ---- */
+function openMenu(){
+  const ov=document.createElement('div');ov.className='sheet-overlay';
+  ov.innerHTML=`<div class="sheet"><div class="sheet-grip"></div>
+    <div class="sheet-title">Impostazioni</div>
+    <div class="sheet-item" data-a="pin"><b>Cambia PIN</b><span>Serve il PIN attuale. Tutto viene ricifrato con il nuovo.</span></div>
+    <div class="sheet-item" data-a="txt"><b>Esporta come testo (.txt)</b><span>Pensieri e decisioni in chiaro, per archiviare o stampare.</span></div>
+    <div class="sheet-item" data-a="enc"><b>Esporta cifrato (.diario)</b><span>Backup protetto, reimportabile solo con il tuo PIN.</span></div>
+    <div class="sheet-item" data-a="import"><b>Importa da file .diario</b><span>Ripristina un backup cifrato creato con questa app.</span></div>
+    <div class="sheet-item danger" data-a="cancel"><b>Annulla</b></div>
+  </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('show'));
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),250);};
+  ov.addEventListener('click',e=>{
+    if(e.target===ov){close();return;}
+    const item=e.target.closest('.sheet-item');if(!item)return;
+    const a=item.dataset.a;close();
+    setTimeout(()=>{
+      if(a==='pin')startChangePin();
+      else if(a==='txt')exportTxt();
+      else if(a==='enc')exportEncrypted();
+      else if(a==='import'){
+        let fi=document.getElementById('import-file');
+        if(!fi){activeTab='pensieri';renderHome();fi=document.getElementById('import-file');}
+        fi.click();
+      }
+    },260);
+  });
+}
+
+/* ---- export / import ---- */
+function downloadBlob(filename,text,mime){
+  const blob=new Blob([text],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+}
+function stamp(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function exportTxt(){
+  if(!entries.length&&!dstore.list.length){toast('Il diario è vuoto');return;}
+  let out=`DIARIO — esportato il ${new Date().toLocaleString('it-IT')}\n\n`;
+  if(entries.length){
+    out+='═══════════ PENSIERI ═══════════\n\n';
+    [...entries].sort((a,b)=>a.updated-b.updated).forEach(e=>{
+      out+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${new Date(e.updated).toLocaleString('it-IT',{day:'numeric',month:'long',year:'numeric'})}\n${e.title||'Senza titolo'}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${e.body||''}\n\n`;
+    });
+  }
+  if(dstore.list.length){
+    out+='═══════════ DECISIONI ═══════════\n\n';
+    dstore.list.forEach(d=>{
+      out+=`❓ ${d.question}\n`;
+      if(d.pros.length)out+=`   PRO: ${d.pros.join(' · ')}\n`;
+      if(d.cons.length)out+=`   CONTRO: ${d.cons.join(' · ')}\n`;
+      if(d.status==='decided')out+=`   ✓ DECISO il ${fmtDate(d.decidedAt)}: ${d.decision}\n   Motivo: ${d.reason}\n`;
+      else out+=`   (ancora aperta)\n`;
+      out+='\n';
+    });
+  }
+  downloadBlob(`Diario_${stamp()}.txt`,out,'text/plain;charset=utf-8');
+  toast('Esportato in .txt');
+}
+async function exportEncrypted(){
+  if(!entries.length&&!dstore.list.length){toast('Il diario è vuoto');return;}
+  const blob=await encryptJSON(cryptoKey,{entries,decisions:dstore});
+  const pack=JSON.stringify({app:'Diario',v:2,salt:Store.get(KEY_SALT),data:JSON.parse(blob)});
+  downloadBlob(`Diario_${stamp()}.diario`,pack,'application/json');
+  toast('Backup cifrato creato');
+}
+async function onImportFile(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const pack=JSON.parse(text);
+    if(pack.app!=='Diario'||!pack.data||!pack.salt) throw new Error('formato');
+    const p=prompt('Inserisci il PIN con cui è stato creato quel backup:')||'';
+    const key=await deriveKey(p,unb64(pack.salt));
+    const imported=await decryptJSON(key,JSON.stringify(pack.data));
+    let impEntries=[],impDecisions=null;
+    if(Array.isArray(imported)){impEntries=imported;}          // backup v1
+    else{impEntries=imported.entries||[];impDecisions=imported.decisions;} // v2
+    const byId={};[...entries,...impEntries].forEach(e=>{byId[e.id]=e;});
+    entries=Object.values(byId);
+    if(impDecisions){
+      const dById={};[...dstore.list,...(impDecisions.list||[])].forEach(d=>{dById[d.id]=d;});
+      dstore.list=Object.values(dById);
+      dstore.letGo=Math.max(dstore.letGo,impDecisions.letGo||0);
+    }
+    await persistEntries();await persistDecisions();
+    toast(`Importato: ${impEntries.length} pensieri${impDecisions?`, ${impDecisions.list.length} decisioni`:''}`);
+    renderHome();
+  }catch(err){
+    alert('Import non riuscito. Verifica che sia un file .diario di questa app e che il PIN sia quello con cui è stato creato il backup.');
+  }
+}
+
+/* ---- utils ---- */
+function rid(){return b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[^a-zA-Z0-9]/g,'').slice(0,12);}
+function escapeHTML(s=''){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s=''){return escapeHTML(s).replace(/"/g,'&quot;');}
+
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&cryptoKey){ lockNow(); } });
+boot();
+</script>
+</body>
+</html>

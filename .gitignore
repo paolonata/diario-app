@@ -1,0 +1,16 @@
+# Dipendenze npm (rigenerabili con "npm install")
+diario-capacitor/node_modules/
+
+# Output di build Android (rigenerabili con "npx cap sync" + Gradle)
+diario-capacitor/android/**/build/
+diario-capacitor/android/.gradle/
+
+# Config locale della macchina (percorso SDK Android), MAI da versionare
+diario-capacitor/android/local.properties
+
+# Config locale dello strumento Claude Code, non fa parte del progetto
+.claude/
+
+# OS/editor
+.DS_Store
+Thumbs.db

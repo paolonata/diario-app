@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#101116" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Diario" />
+<title>Diario</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' rx='228' fill='%230d1017'/%3E%3Cpath d='M150 512C150 380 330 380 330 512 330 630 190 640 200 500 210 380 400 360 430 500 450 590 350 640 330 560 315 500 420 470 480 505 560 550 640 480 730 505 800 524 850 512 890 512' fill='none' stroke='%23c8a15a' stroke-width='46' stroke-linecap='round'/%3E%3Ccircle cx='890' cy='512' r='34' fill='%23c8a15a'/%3E%3C/svg%3E" />
+<style>
+:root{
+  --cover:#101116;          /* copertina */
+  --page:#14161d;           /* pagina */
+  --line:#262a35;           /* filetto */
+  --rule:#1d2029;           /* righe del foglio */
+  --ink:#e7e2d4;            /* inchiostro avorio */
+  --ink-soft:#9d9a8e;
+  --ink-faint:#5f5d55;
+  --gold:#c8a15a;
+  --gold-dim:#8a6f3d;
+  --aqua:#7aa7b5;
+  --green:#8fae86;
+  --red:#c07a6b;
+  --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--cover);color:var(--ink);font-family:var(--font-serif);height:100%;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+:root{--appw:520px;--fabgap:22px}
+@media(min-width:640px){:root{--appw:620px}}
+@media(min-width:900px){:root{--appw:720px}}
+#app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:var(--appw);margin:0 auto;position:relative}
+
+/* ---------- micro-etichette (sans, maiuscoletto) ---------- */
+.eyebrow{font-family:var(--font-body);font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--ink-faint)}
+.eyebrow.gold{color:var(--gold)}
+.eyebrow.aqua{color:var(--aqua)}
+.eyebrow.green{color:var(--green)}
+
+/* ---------- filetti e asterismo ---------- */
+.rule{border:none;border-top:1px solid var(--line);margin:0}
+.asterism{text-align:center;color:var(--ink-faint);font-size:13px;letter-spacing:8px;padding:14px 0 12px;user-select:none}
+
+/* ---------- il nastro segnalibro (firma) ---------- */
+.ribbon{position:absolute;top:0;right:22px;width:7px;height:64px;z-index:4;pointer-events:none;
+  background:linear-gradient(180deg,var(--gold) 0%,#a5813f 100%);
+  clip-path:polygon(0 0,100% 0,100% 100%,50% calc(100% - 7px),0 100%);
+  box-shadow:0 1px 4px rgba(0,0,0,.5)}
+
+/* ---------- lock / setup ---------- */
+.lock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:26px;min-height:100vh;min-height:100dvh}
+.lock-brand{font-size:38px;letter-spacing:1px;font-weight:400}
+.lock-brand span{color:var(--gold)}
+.lock-sub{color:var(--ink-soft);font-size:16px;text-align:center;margin-top:-14px;line-height:1.55;max-width:300px;font-style:italic}
+.pin-dots{display:flex;gap:18px;height:16px;align-items:center}
+.pin-dot{width:11px;height:11px;border-radius:50%;border:1px solid var(--gold-dim);transition:transform .12s,background .12s}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold);transform:scale(1.15)}
+.pin-error{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,78px);gap:14px;margin-top:4px}
+.key{height:72px;width:78px;border-radius:12px;background:none;border:1px solid var(--line);color:var(--ink);font-size:26px;font-weight:400;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s,transform .06s;font-family:var(--font-serif)}
+.key:active{background:var(--page);transform:scale(.95)}
+.key.blank{border:none;pointer-events:none}
+.key.action{font-size:19px;color:var(--ink-soft)}
+.lock-msg{color:var(--red);font-size:14px;height:18px;text-align:center;font-family:var(--font-body)}
+.lock-cancel{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:8px;font-family:var(--font-body)}
+
+/* ---------- testata ---------- */
+.masthead{padding:24px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.masthead h1{font-size:30px;font-weight:400;letter-spacing:.5px}
+.masthead h1 span{color:var(--gold)}
+.masthead .actions{display:flex;gap:4px;padding-right:26px;flex:none}
+.icon-btn{background:none;border:none;color:var(--ink-soft);font-size:19px;cursor:pointer;padding:6px;line-height:1}
+.colophon{font-family:var(--font-body);font-size:12px;color:var(--ink-soft);letter-spacing:.3px;padding:8px 44px 0 24px;line-height:1.8}
+.colophon b{color:var(--gold);font-weight:600}
+.colophon .g{color:var(--green)}
+.colophon .a{color:var(--aqua)}
+
+/* ---------- sezioni (tab come capitoli) ---------- */
+.sections{display:flex;gap:26px;padding:16px 24px 0;border-bottom:1px solid var(--line);margin-top:8px}
+.section-tab{padding:0 2px 12px;font-size:17px;color:var(--ink-faint);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-style:italic}
+.section-tab.active{color:var(--ink);border-bottom-color:var(--gold);font-style:normal}
+
+/* ---------- epigrafe (spunto del giorno) ---------- */
+.epigraph{padding:22px 34px 6px;text-align:center;cursor:pointer}
+.epigraph:active{opacity:.75}
+.epigraph-text{font-size:17px;line-height:1.6;font-style:italic;color:var(--ink)}
+.epigraph .eyebrow{display:block;margin-bottom:8px}
+
+/* ---------- pagina / elenco ---------- */
+.page{flex:1;background:var(--page);border-top:1px solid var(--line);margin-top:18px;padding:6px 24px 130px;box-shadow:0 -14px 30px rgba(0,0,0,.25)}
+.item{position:relative;border-bottom:1px solid var(--line);overflow:hidden}
+.item:last-child{border-bottom:none}
+.item-inner{padding:18px 0 16px;cursor:pointer;background:var(--page);position:relative;z-index:1;touch-action:pan-y;will-change:transform}
+.item-inner:active{opacity:.75}
+.item .eyebrow{margin-bottom:6px;display:block}
+.swipe-del{position:absolute;top:0;right:-1px;bottom:0;width:86px;display:flex;align-items:center;justify-content:center;color:var(--red);font-family:var(--font-body);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;border-left:1px solid var(--line);cursor:pointer;z-index:0}
+.swipe-del:active{opacity:.6}
+.item-title{font-size:20px;line-height:1.35;margin-bottom:5px}
+.item-preview{color:var(--ink-soft);font-size:15px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item-meta{font-family:var(--font-body);font-size:11px;color:var(--ink-faint);margin-top:9px;letter-spacing:.4px}
+.empty{padding:52px 24px;text-align:center}
+.empty-serif{font-size:22px;line-height:1.55;color:var(--ink-soft);font-style:italic}
+.empty-sub{font-family:var(--font-body);font-size:13px;color:var(--ink-faint);margin-top:10px}
+
+/* ---------- pulsante penna ---------- */
+.fab{position:fixed;right:calc(50vw - var(--appw)/2 + var(--fabgap));bottom:calc(26px + env(safe-area-inset-bottom));width:62px;height:62px;border-radius:50%;background:var(--cover);border:1px solid var(--gold);color:var(--gold);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.55);z-index:6}
+@media(max-width:560px){.fab{right:var(--fabgap)}}
+.fab:active{transform:scale(.94);background:var(--page)}
+
+/* ---------- editor come pagina a righe ---------- */
+.editor{flex:1;display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;background:var(--page)}
+.editor-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;background:var(--page);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+.editor-body{flex:1;padding:18px 26px 40px;display:flex;flex-direction:column}
+.editor-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.editor-count{font-family:var(--font-body);font-size:11.5px;color:var(--ink-faint);letter-spacing:.4px;transition:color .3s}
+.editor-count.alive{color:var(--aqua)}
+.editor-title{background:none;border:none;border-bottom:1px solid var(--line);color:var(--ink);width:100%;font-family:var(--font-serif);font-size:25px;outline:none;padding:2px 0 10px;margin-bottom:4px}
+.editor-title::placeholder{color:var(--ink-faint);font-style:italic}
+.editor-text{background:none;border:none;color:var(--ink);width:100%;flex:1;font-size:17px;line-height:1.9em;outline:none;resize:none;min-height:300px;font-family:var(--font-serif);
+  background-image:repeating-linear-gradient(transparent,transparent calc(1.9em - 1px),var(--rule) calc(1.9em - 1px),var(--rule) 1.9em);
+  background-attachment:local;padding-top:0}
+.editor-text::placeholder{color:var(--ink-faint);font-style:italic}
+.text-btn{background:none;border:none;color:var(--gold);font-size:15px;cursor:pointer;padding:6px 4px;font-family:var(--font-body)}
+.text-btn.muted{color:var(--ink-soft)}.text-btn.danger{color:var(--red)}
+
+/* ---------- decisioni: registro ---------- */
+.dview{flex:1;padding:16px 26px 130px;display:flex;flex-direction:column;gap:18px;background:var(--page)}
+.dq-big{font-size:24px;line-height:1.4}
+.pc-wrap{display:flex;gap:24px}
+.pc-col{flex:1;min-width:0}
+.pc-col .eyebrow{display:block;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:4px}
+.pc-item{font-size:15px;color:var(--ink-soft);line-height:1.5;padding:8px 0;border-bottom:1px dotted var(--line);display:flex;justify-content:space-between;gap:8px}
+.pc-item:last-of-type{border-bottom:none}
+.pc-x{color:var(--ink-faint);cursor:pointer;flex:none;font-family:var(--font-body);font-size:13px;padding-top:2px}
+.pc-add{display:flex;gap:6px;margin-top:6px}
+.pc-add input{flex:1;background:none;border:none;border-bottom:1px solid var(--line);color:var(--ink);padding:8px 0;font-size:15px;outline:none;min-width:0;font-family:var(--font-serif)}
+.pc-add input::placeholder{color:var(--ink-faint);font-style:italic}
+.pc-add button{background:none;border:none;color:var(--gold);font-size:20px;cursor:pointer;padding:0 4px}
+.aside{font-size:14.5px;color:var(--ink-soft);line-height:1.65;font-style:italic;text-align:center;padding:0 8px}
+.btn{border:1px solid var(--gold);border-radius:3px;padding:14px 16px;font-size:16.5px;cursor:pointer;width:100%;font-family:var(--font-serif);letter-spacing:.2px;background:none;color:var(--gold);line-height:1.4}
+.btn.solid{background:var(--gold);color:#191204}
+.btn.green-line{border-color:var(--green);color:var(--green)}
+.btn.red-line{border-color:var(--red);color:var(--red)}
+.btn.ghost{border-color:var(--line);color:var(--ink-soft)}
+.btn:active{transform:scale(.985)}
+
+/* ---------- finestre di dialogo in tema ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(6,7,10,.72);z-index:50;display:flex;align-items:center;justify-content:center;padding:26px;opacity:0;transition:opacity .18s}
+.modal-overlay.show{opacity:1}
+.modal{width:100%;max-width:380px;background:var(--page);border:1px solid var(--gold-dim);padding:22px 22px 18px;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.6);transform:translateY(8px);transition:transform .18s}
+.modal-overlay.show .modal{transform:translateY(0)}
+.modal .seal-dot{top:-11px;right:14px}
+.modal-title{font-size:21px;line-height:1.35;margin-bottom:8px}
+.modal-body{font-family:var(--font-body);font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px}
+.modal .field{font-size:17px;margin-bottom:16px}
+.modal-actions{display:flex;gap:10px;margin-top:4px}
+.modal-actions .btn{padding:12px 10px;font-size:15.5px}
+.field{background:none;border:none;border-bottom:1px solid var(--line);color:var(--ink);padding:10px 0;font-size:18px;outline:none;width:100%;font-family:var(--font-serif)}
+.field::placeholder{color:var(--ink-faint);font-style:italic}
+textarea.field{min-height:120px;resize:none;line-height:1.8em;border:none;
+  background-image:repeating-linear-gradient(transparent,transparent calc(1.8em - 1px),var(--rule) calc(1.8em - 1px),var(--rule) 1.8em);
+  background-attachment:local;font-size:16px}
+.sealed{border:1px solid var(--gold-dim);outline:1px solid var(--gold-dim);outline-offset:3px;padding:18px 18px 16px;position:relative;margin-top:6px}
+.sealed .eyebrow{display:block;margin-bottom:8px}
+.sealed-text{font-size:21px;line-height:1.45}
+.sealed-reason{font-size:15px;color:var(--ink-soft);margin-top:12px;line-height:1.65;font-style:italic}
+.seal-dot{position:absolute;top:-11px;right:14px;width:22px;height:22px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px var(--page)}
+.gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:26px;gap:18px;min-height:82vh;background:var(--page)}
+.gate-title{font-size:28px;line-height:1.35;text-align:center}
+.gate-sub{color:var(--ink-soft);font-size:15.5px;text-align:center;line-height:1.65}
+.gate-sub b{color:var(--ink)}
+
+/* ---------- sheet / toast ---------- */
+.toast{position:fixed;left:50%;bottom:calc(112px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--page);color:var(--ink);border:1px solid var(--line);padding:12px 22px;border-radius:2px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:40;max-width:88vw;text-align:center;font-family:var(--font-body);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toast.show{opacity:1}
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:30;display:flex;align-items:flex-end;opacity:0;transition:opacity .2s}
+.sheet-overlay.show{opacity:1}
+.sheet{width:100%;max-width:520px;margin:0 auto;background:var(--page);border-top:1px solid var(--gold-dim);padding:14px 22px calc(26px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s}
+.sheet-overlay.show .sheet{transform:translateY(0)}
+.sheet-title{font-size:20px;margin:4px 2px 10px}
+.sheet-item{display:flex;flex-direction:column;gap:3px;padding:14px 2px;cursor:pointer;border-bottom:1px solid var(--line)}
+.sheet-item:last-child{border-bottom:none}
+.sheet-item:active{opacity:.65}
+.sheet-item b{font-size:16.5px;font-weight:400}
+.sheet-item span{font-family:var(--font-body);font-size:12.5px;color:var(--ink-soft);line-height:1.45}
+.sheet-item.danger b{color:var(--red)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   Diario — pensa, decidi, resta.  (edizione taccuino)
+   Tutto locale, cifrato AES-GCM 256 (PBKDF2 200k dal PIN).
+   ============================================================ */
+
+const Store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ try{toast('Impossibile salvare: spazio esaurito o navigazione privata.');}catch(_){}} },
+  remove(k){ try { localStorage.removeItem(k); } catch {} },
+};
+const KEY_VERIFIER='diario.verifier',KEY_SALT='diario.salt',KEY_ENTRIES='diario.entries',KEY_DECISIONS='diario.decisions';
+
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptJSON(key,obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(obj)));
+  return JSON.stringify({iv:b64(iv),ct:b64(ct)});
+}
+async function decryptJSON(key,blob){
+  const {iv,ct}=JSON.parse(blob);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(iv)},key,unb64(ct));
+  return JSON.parse(dec.decode(pt));
+}
+
+const app=document.getElementById('app');
+let cryptoKey=null,entries=[],dstore={list:[],letGo:0},editing=null,activeTab='pensieri';
+
+function toast(m){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400);}
+
+/* Dialoghi in tema (al posto di confirm/prompt/alert di sistema).
+   Ritorna: true/testo se confermato, null se annullato. */
+function appModal({title,body,input=false,placeholder='',inputMode='',okLabel='Conferma',cancelLabel='Annulla',danger=false,okOnly=false}){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');ov.className='modal-overlay';
+    ov.innerHTML=`<div class="modal"><div class="seal-dot" style="background:${danger?'var(--red)':'var(--gold)'}"></div>
+      <div class="modal-title">${title}</div>
+      ${body?`<div class="modal-body">${body}</div>`:''}
+      ${input?`<input class="field" id="modal-in" placeholder="${placeholder}" ${inputMode?`inputmode="${inputMode}"`:''} autocomplete="off"/>`:''}
+      <div class="modal-actions">
+        ${okOnly?'':`<button class="btn ghost" id="modal-cancel">${cancelLabel}</button>`}
+        <button class="btn ${danger?'red-line':'solid'}" id="modal-ok">${okLabel}</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>ov.classList.add('show'));
+    const close=(val)=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),200);resolve(val);};
+    const okBtn=ov.querySelector('#modal-ok');
+    okBtn.onclick=()=>{
+      if(input){const v=ov.querySelector('#modal-in').value.trim();close(v||null);}
+      else close(true);
+    };
+    const c=ov.querySelector('#modal-cancel');if(c)c.onclick=()=>close(null);
+    ov.addEventListener('click',e=>{if(e.target===ov)close(null);});
+    if(input){const f=ov.querySelector('#modal-in');setTimeout(()=>f.focus(),80);f.addEventListener('keydown',e=>{if(e.key==='Enter')okBtn.click();});}
+  });
+}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});}
+function wordCount(s=''){const m=s.trim().match(/\S+/g);return m?m.length:0;}
+function dayKey(ts){const d=new Date(ts);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;}
+function daysSince(ts){return Math.floor((Date.now()-ts)/86400000);}
+
+function computeStreak(){
+  const days=new Set(entries.map(e=>dayKey(e.created)));
+  if(!days.size)return 0;
+  let streak=0;const d=new Date();
+  if(!days.has(dayKey(d.getTime()))) d.setDate(d.getDate()-1);
+  while(days.has(dayKey(d.getTime()))){streak++;d.setDate(d.getDate()-1);}
+  return streak;
+}
+function totalWords(){return entries.reduce((n,e)=>n+wordCount(e.title)+wordCount(e.body),0);}
+function wroteToday(){return entries.some(e=>dayKey(e.created)===dayKey(Date.now()));}
+function decidedCount(){return dstore.list.filter(d=>d.status==='decided').length;}
+
+const PROMPTS=[
+ 'Cosa ti gira in testa proprio adesso? Scrivilo così com\u2019è, senza ordinarlo.',
+ 'Qual è il pensiero che oggi è tornato più volte? Mettilo su carta e lascialo lì.',
+ 'Stai rimuginando su qualcosa di già deciso? Scrivi perché ci stai tornando.',
+ 'C\u2019è qualcosa che stai rimandando? Descrivi solo il primo passo.',
+ 'Che cosa ti ha fatto sorridere oggi, anche di poco?',
+ 'Se potessi togliere un peso dalla testa stasera, quale sarebbe?',
+ 'Il pensiero che rigiri: è un problema da risolvere o solo rumore da scaricare?',
+ 'Cosa diresti a te stesso di stamattina, ora che sai com\u2019è andata?',
+ 'Scrivi la cosa che non stai dicendo a nessuno.',
+ 'Quale decisione stai evitando di prendere? Nominarla è già metà.',
+ 'Che cosa vorresti lasciare fuori dalla porta prima di dormire?',
+ 'Se la tua mente fosse un cielo, che tempo fa lì dentro adesso?',
+ 'Qual è la piccola vittoria di oggi che nessuno ha visto?',
+ 'Sta succedendo davvero, o sta succedendo solo nella tua testa?',
+];
+function todayPrompt(){const d=new Date();const seed=d.getFullYear()*372+(d.getMonth()+1)*31+d.getDate();return PROMPTS[seed%PROMPTS.length];}
+
+function boot(){ Store.get(KEY_VERIFIER)?renderLock():renderSetup(); }
+
+/* ---- keypad / PIN ---- */
+function dotsHTML(n){return [0,1,2,3].map(i=>`<div class="pin-dot ${i<n?'filled':''}"></div>`).join('');}
+function keypadHTML(){const keys=[1,2,3,4,5,6,7,8,9,'blank',0,'del'];return `<div class="keypad">${keys.map(k=>{if(k==='blank')return `<div class="key blank"></div>`;if(k==='del')return `<button class="key action" data-key="del">⌫</button>`;return `<button class="key" data-key="${k}">${k}</button>`;}).join('')}</div>`;}
+function bindKeypad(onDigit,onDel){document.querySelectorAll('.key[data-key]').forEach(btn=>btn.addEventListener('click',()=>{const k=btn.dataset.key;k==='del'?onDel():onDigit(k);}));}
+function pinScreen({title,sub,onComplete,onCancel}){
+  app.innerHTML=`<div class="lock"><div class="lock-brand">${title}</div><p class="lock-sub">${sub}</p><div class="pin-dots" id="dots">${dotsHTML(0)}</div><div class="lock-msg" id="msg"></div>${keypadHTML()}${onCancel?'<button class="lock-cancel" id="cancel">Annulla</button>':''}</div>`;
+  let pin='';
+  const dotsEl=()=>document.getElementById('dots');
+  const dots=()=>dotsEl().innerHTML=dotsHTML(pin.length);
+  const msg=m=>document.getElementById('msg').textContent=m||'';
+  if(onCancel)document.getElementById('cancel').onclick=onCancel;
+  bindKeypad(d=>{if(pin.length<4){pin+=d;dots();if(pin.length===4)setTimeout(done,150);}},()=>{pin=pin.slice(0,-1);dots();});
+  async function done(){
+    const res=await onComplete(pin);
+    if(res!==true){dotsEl().classList.add('pin-error');msg(res||'Riprova');setTimeout(()=>{pin='';dots();dotsEl().classList.remove('pin-error');msg('');},750);}
+  }
+}
+function renderSetup(){
+  let first=null;
+  const step1=()=>pinScreen({title:'Dia<span>rio</span>',sub:'Il posto dove i pensieri si scrivono,<br>le decisioni si prendono, e si resta.<br><br>Scegli un PIN di 4 cifre.',onComplete:async(pin)=>{first=pin;step2();return true;}});
+  const step2=()=>pinScreen({title:'Dia<span>rio</span>',sub:'Ripeti il PIN per conferma.',onComplete:async(pin)=>{if(pin!==first){step1();return 'I PIN non coincidono';}await createVault(pin);return true;}});
+  step1();
+}
+async function createVault(pin){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const key=await deriveKey(pin,salt);
+  Store.set(KEY_SALT,b64(salt));
+  Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+  Store.set(KEY_ENTRIES,await encryptJSON(key,[]));
+  Store.set(KEY_DECISIONS,await encryptJSON(key,{list:[],letGo:0}));
+  cryptoKey=key;entries=[];dstore={list:[],letGo:0};renderHome();
+}
+function renderLock(){
+  pinScreen({title:'Dia<span>rio</span>',sub:'Inserisci il PIN',onComplete:async(pin)=>{
+    const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+    try{
+      await decryptJSON(key,Store.get(KEY_VERIFIER));
+      cryptoKey=key;
+      entries=await decryptJSON(key,Store.get(KEY_ENTRIES));
+      const rawD=Store.get(KEY_DECISIONS);
+      dstore=rawD?await decryptJSON(key,rawD):{list:[],letGo:0};
+      renderHome();return true;
+    }catch{return 'PIN errato';}
+  }});
+}
+function lockNow(){cryptoKey=null;entries=[];dstore={list:[],letGo:0};editing=null;renderLock();}
+function startChangePin(){
+  let newPin=null;const back=()=>renderHome();
+  const stepOld=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Inserisci il PIN attuale.',onCancel:back,onComplete:async(pin)=>{
+    const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+    try{await decryptJSON(key,Store.get(KEY_VERIFIER));stepNew();return true;}catch{return 'PIN errato';}
+  }});
+  const stepNew=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Scegli il nuovo PIN di 4 cifre.',onCancel:back,onComplete:async(pin)=>{newPin=pin;stepConfirm();return true;}});
+  const stepConfirm=()=>pinScreen({title:'Cambia <span>PIN</span>',sub:'Ripeti il nuovo PIN per conferma.',onCancel:back,onComplete:async(pin)=>{
+    if(pin!==newPin){stepNew();return 'I PIN non coincidono';}
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+    const key=await deriveKey(pin,salt);
+    Store.set(KEY_SALT,b64(salt));
+    Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+    Store.set(KEY_ENTRIES,await encryptJSON(key,entries));
+    Store.set(KEY_DECISIONS,await encryptJSON(key,dstore));
+    cryptoKey=key;toast('PIN aggiornato');renderHome();return true;
+  }});
+  stepOld();
+}
+
+async function persistEntries(){ Store.set(KEY_ENTRIES,await encryptJSON(cryptoKey,entries)); }
+async function persistDecisions(){ Store.set(KEY_DECISIONS,await encryptJSON(cryptoKey,dstore)); }
+
+/* ---- testata comune ---- */
+function headerHTML(){
+  const streak=computeStreak();
+  const parts=[];
+  parts.push(`<b>${streak}</b> ${streak===1?'giorno':'giorni'} di fila${wroteToday()?' ✓':''}`);
+  parts.push(`<span class="a"><b>${totalWords().toLocaleString('it-IT')}</b></span> parole liberate`);
+  const dc=decidedCount();
+  if(dc)parts.push(`<span class="g"><b>${dc}</b></span> ${dc===1?'decisione presa':'decisioni prese'}`);
+  if(dstore.letGo)parts.push(`<span class="g"><b>${dstore.letGo}</b></span> ${dstore.letGo===1?'rimuginio lasciato andare':'rimuginii lasciati andare'}`);
+  return `
+    <div class="ribbon" aria-hidden="true"></div>
+    <div class="masthead">
+      <h1>Dia<span>rio</span></h1>
+      <div class="actions"><button class="icon-btn" id="menu-btn" title="Impostazioni">⋯</button><button class="icon-btn" id="lock-btn" title="Blocca">🔒</button></div>
+    </div>
+    <div class="colophon">${parts.join(' &nbsp;·&nbsp; ')}</div>
+    <div class="sections">
+      <div class="section-tab ${activeTab==='pensieri'?'active':''}" data-tab="pensieri">Pensieri</div>
+      <div class="section-tab ${activeTab==='decisioni'?'active':''}" data-tab="decisioni">Decisioni</div>
+    </div>`;
+}
+function bindHeader(){
+  document.getElementById('lock-btn').onclick=lockNow;
+  document.getElementById('menu-btn').onclick=openMenu;
+  document.querySelectorAll('.section-tab').forEach(t=>t.onclick=()=>{activeTab=t.dataset.tab;renderHome();});
+}
+function renderHome(){ activeTab==='pensieri'?renderJournal():renderDecisions(); }
+
+/* ---- PENSIERI ---- */
+function renderJournal(){
+  const sorted=[...entries].sort((a,b)=>b.updated-a.updated);
+  const listHTML=sorted.length
+    ?sorted.map(e=>{
+        const w=wordCount(e.title)+wordCount(e.body);
+        return `<div class="item" data-id="${e.id}"><div class="swipe-del" data-del="${e.id}">Elimina</div><div class="item-inner"><span class="eyebrow gold">${fmtDate(e.updated)}</span><div class="item-title">${escapeHTML(e.title||'Senza titolo')}</div><div class="item-preview">${escapeHTML(e.body||'')}</div><div class="item-meta">${w} parole liberate</div></div></div>`;
+      }).join('')
+    :`<div class="empty"><div class="empty-serif">La pagina è bianca,<br>la testa no.</div><div class="empty-sub">Bastano due righe. Tocca la penna.</div></div>`;
+  app.innerHTML=`${headerHTML()}
+    <div class="epigraph" id="nudge">
+      <span class="eyebrow aqua">${wroteToday()?'Ancora qualcosa da dire?':'Spunto di oggi'}</span>
+      <div class="epigraph-text">${todayPrompt()}</div>
+    </div>
+    <div class="page">${listHTML}</div>
+    <button class="fab" id="new-btn" title="Scrivi">✒</button>
+    <input type="file" id="import-file" accept=".diario,.txt,application/json,text/plain" style="display:none">`;
+  bindHeader();
+  document.getElementById('new-btn').onclick=()=>openEditor(null);
+  document.getElementById('nudge').onclick=()=>openEditor(null,todayPrompt());
+  document.getElementById('import-file').onchange=onImportFile;
+  bindSwipeList({
+    onOpen:id=>openEditor(entries.find(x=>x.id===id)),
+    onDelete:async id=>{
+      const ok=await appModal({title:'Eliminare questo pensiero?',body:'Sparirà per sempre dal diario.',okLabel:'Elimina',danger:true});
+      if(!ok)return;
+      entries=entries.filter(e=>e.id!==id);
+      await persistEntries();toast('Pensiero eliminato');renderHome();
+    }
+  });
+}
+function openEditor(entry,promptHint){
+  editing=entry;const isNew=!entry;const ts=entry?entry.updated:Date.now();
+  const placeholder=promptHint||'Scrivi come viene. Qui non serve ordine.';
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><button class="text-btn" id="save">Salva</button></div>
+    <div class="editor-body">
+      <div class="editor-meta"><span class="eyebrow gold">${fmtDate(ts)}</span><div class="editor-count" id="count"></div></div>
+      <input class="editor-title" id="title" placeholder="Titolo (facoltativo)" value="${entry?escapeAttr(entry.title):''}"/>
+      <textarea class="editor-text" id="body" placeholder="${escapeAttr(placeholder)}">${entry?escapeHTML(entry.body):''}</textarea>
+      ${isNew?'':'<button class="text-btn danger" id="del" style="margin-top:20px;align-self:flex-start">Elimina voce</button>'}
+    </div></div>`;
+  const bodyEl=document.getElementById('body');
+  const countEl=document.getElementById('count');
+  const baseWords=entry?wordCount(entry.title)+wordCount(entry.body):0;
+  const updateCount=()=>{const w=wordCount(document.getElementById('title').value)+wordCount(bodyEl.value);countEl.textContent=w?`${w} parole`:'';countEl.classList.toggle('alive',w>baseWords);};
+  bodyEl.addEventListener('input',updateCount);
+  document.getElementById('title').addEventListener('input',updateCount);
+  updateCount();
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('save').onclick=saveEntry;
+  const d=document.getElementById('del');if(d)d.onclick=deleteEntry;
+}
+async function saveEntry(){
+  const title=document.getElementById('title').value.trim();
+  const body=document.getElementById('body').value.trim();
+  if(!title&&!body){renderHome();return;}
+  const before=editing?wordCount(editing.title)+wordCount(editing.body):0;
+  if(editing){editing.title=title;editing.body=body;editing.updated=Date.now();}
+  else{entries.push({id:rid(),title,body,created:Date.now(),updated:Date.now()});}
+  await persistEntries();
+  const gained=Math.max(0,wordCount(title)+wordCount(body)-before);
+  const streak=computeStreak();
+  if(gained>0)toast(`+${gained} parole liberate · ${streak} ${streak===1?'giorno':'giorni'} di fila`);
+  else toast('Salvato');
+  renderHome();
+}
+async function deleteEntry(){
+  if(!editing)return;
+  const ok=await appModal({title:'Eliminare questa voce?',body:'Sparirà per sempre dal diario.',okLabel:'Elimina',danger:true});
+  if(!ok)return;
+  entries=entries.filter(e=>e.id!==editing.id);
+  await persistEntries();toast('Voce eliminata');renderHome();
+}
+
+/* ---- DECISIONI: flusso a imbuto, una domanda alla volta ---- */
+function renderDecisions(){
+  const open=dstore.list.filter(d=>d.status==='open').sort((a,b)=>b.createdAt-a.createdAt);
+  const done=dstore.list.filter(d=>d.status==='decided').sort((a,b)=>b.decidedAt-a.decidedAt);
+  const openHTML=open.map(d=>
+    `<div class="item" data-id="${d.id}"><div class="swipe-del" data-del="${d.id}">Elimina</div><div class="item-inner"><span class="eyebrow aqua">In cammino</span><div class="item-title">${escapeHTML(d.question)}</div><div class="item-meta">riprendi da dove eri</div></div></div>`).join('');
+  const doneHTML=done.map(d=>
+    `<div class="item" data-id="${d.id}"><div class="swipe-del" data-del="${d.id}">Elimina</div><div class="item-inner"><span class="eyebrow green">Deciso · ${fmtDate(d.decidedAt)}</span><div class="item-title">${escapeHTML(d.question)}</div><div class="item-meta">${d.reopens>0?`riaperta ${d.reopens} ${d.reopens===1?'volta':'volte'} · `:''}${daysSince(d.decidedAt)===0?'oggi':daysSince(d.decidedAt)+' giorni fa'}</div></div></div>`).join('');
+  const divider=(open.length&&done.length)?`<div class="asterism">· · ·</div>`:'';
+  const emptyHTML=(!open.length&&!done.length)?`<div class="empty"><div class="empty-serif">Ogni pensiero che rigiri<br>è una decisione che aspetta.</div><div class="empty-sub">Cinque passi, una domanda alla volta. Poi si chiude.</div></div>`:'';
+  app.innerHTML=`${headerHTML()}
+    <div class="page" style="margin-top:22px">${emptyHTML}${openHTML}${divider}${doneHTML}</div>
+    <button class="fab" id="new-d" title="Nuova decisione">⚖</button>`;
+  bindHeader();
+  document.getElementById('new-d').onclick=()=>decisionFlow(null);
+  bindSwipeList({
+    onOpen:id=>{
+      const d=dstore.list.find(x=>x.id===id);
+      d.status==='decided'?ruminationGate(d):decisionFlow(d);
+    },
+    onDelete:async id=>{
+      const ok=await appModal({title:'Eliminare questa decisione?',body:'Domanda, risposte e motivazione andranno perse.',okLabel:'Elimina',danger:true});
+      if(!ok)return;
+      dstore.list=dstore.list.filter(x=>x.id!==id);
+      await persistDecisions();toast('Decisione eliminata');renderHome();
+    }
+  });
+}
+
+/* Una schermata = una domanda. Niente liste: risposte brevi che convergono. */
+function flowStep({step,total,eyebrow,title,aside,inputHTML,nextLabel,onNext,onBack,extraHTML}){
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ ${onBack?'Indietro':'Esci'}</button><span class="editor-count">${step} di ${total}</span></div>
+    <div class="dview" style="justify-content:center;min-height:78vh;gap:18px">
+      <span class="eyebrow gold">${eyebrow}</span>
+      <div class="gate-title" style="text-align:left;font-size:25px">${title}</div>
+      ${aside?`<div class="aside" style="text-align:left;padding:0">${aside}</div>`:''}
+      ${inputHTML||''}
+      ${extraHTML||''}
+      ${nextLabel?`<button class="btn solid" id="next" style="margin-top:6px">${nextLabel}</button>`:''}
+      <button class="btn ghost" id="park" style="border:none;text-align:center;color:var(--ink-faint)">Non ora — la lascio riposare</button>
+    </div></div>`;
+  document.getElementById('back').onclick=onBack||renderHome;
+  document.getElementById('park').onclick=()=>{toast('Va bene anche così. Sarà qui quando torni.');renderHome();};
+  if(onNext)document.getElementById('next').onclick=onNext;
+  setTimeout(()=>document.querySelector('.dview input,.dview textarea')?.focus(),80);
+}
+function decisionFlow(d){
+  const isNew=!d;
+  if(isNew){
+    d={id:rid(),question:'',gut:'',brake:'',regret:'',reversible:null,status:'open',decision:'',reason:'',createdAt:Date.now(),decidedAt:null,reopens:0,facts:[]};
+  }
+  /* riprende dal primo passo vuoto */
+  if(!d.question)step1();
+  else if(!d.gut)step2();
+  else if(!d.brake)step3();
+  else if(!d.regret)step4();
+  else if(d.reversible===null||d.reversible===undefined)step5();
+  else commitScreen(d);
+
+  async function saveDraft(){
+    if(!dstore.list.find(x=>x.id===d.id))dstore.list.push(d);
+    await persistDecisions();
+  }
+  function step1(){
+    flowStep({step:1,total:5,eyebrow:'Il punto di partenza',
+      title:'Che decisione ti gira in testa?',
+      aside:'Scrivila come una domanda. Nominarla è già metà del lavoro.',
+      inputHTML:`<input class="field" id="in" placeholder="Es. Cambio lavoro o resto dove sono?" value="${escapeAttr(d.question)}"/>`,
+      nextLabel:'Avanti',
+      onNext:async()=>{const v=document.getElementById('in').value.trim();if(!v){toast('Scrivi la domanda');return;}d.question=v;await saveDraft();step2();},
+      onBack:renderHome});
+  }
+  function step2(){
+    flowStep({step:2,total:5,eyebrow:'L\u2019istinto',
+      title:'Se dovessi scegliere adesso, in dieci secondi, cosa faresti?',
+      aside:'Non pensarci. La prima risposta, quella di pancia. Di solito la sai già: il rimuginio serve a non ascoltarla.',
+      inputHTML:`<input class="field" id="in" placeholder="La prima cosa che ti viene" value="${escapeAttr(d.gut)}"/>`,
+      nextLabel:'L\u2019ho scritta',
+      onNext:async()=>{const v=document.getElementById('in').value.trim();if(!v){toast('Dieci secondi. Scrivi la prima risposta.');return;}d.gut=v;await saveDraft();step3();},
+      onBack:step1});
+  }
+  function step3(){
+    flowStep({step:3,total:5,eyebrow:'Il freno',
+      title:'Cosa ti frena, davvero?',
+      aside:'Una cosa sola: la più grossa. Se sono tante, è quella che torna più spesso. Spesso il freno è una paura travestita da analisi.',
+      inputHTML:`<input class="field" id="in" placeholder="La paura, detta senza giri" value="${escapeAttr(d.brake)}"/>`,
+      nextLabel:'Eccola',
+      onNext:async()=>{const v=document.getElementById('in').value.trim();if(!v){toast('Nominare il freno lo rimpicciolisce');return;}d.brake=v;await saveDraft();step4();},
+      onBack:step2});
+  }
+  function step4(){
+    flowStep({step:4,total:5,eyebrow:'Il rimpianto',
+      title:'Tra un anno, quale scelta rimpiangeresti di più?',
+      aside:'Non quale è giusta: quale ti peserebbe non aver fatto. Il rimpianto guarda lontano meglio della paura.',
+      inputHTML:`<input class="field" id="in" placeholder="Rimpiangerei di non aver…" value="${escapeAttr(d.regret)}"/>`,
+      nextLabel:'Avanti',
+      onNext:async()=>{const v=document.getElementById('in').value.trim();if(!v){toast('Prova a guardarla da lontano');return;}d.regret=v;await saveDraft();step5();},
+      onBack:step3});
+  }
+  function step5(){
+    flowStep({step:5,total:5,eyebrow:'La porta',
+      title:'Se scegli e ti accorgi che era sbagliato: puoi tornare indietro o correggere?',
+      aside:'',
+      inputHTML:`<button class="btn green-line" id="rev-yes" style="margin-top:4px">Sì, posso correggere il tiro</button>
+                 <button class="btn ghost" id="rev-no">No, è difficile tornare indietro</button>`,
+      nextLabel:null,
+      onBack:step4});
+    document.getElementById('rev-yes').onclick=async()=>{d.reversible=true;await saveDraft();commitScreen(d);};
+    document.getElementById('rev-no').onclick=async()=>{d.reversible=false;await saveDraft();commitScreen(d);};
+  }
+}
+function commitScreen(d){
+  const revNote=d.reversible
+    ?'È una porta a due ante: se sbagli, correggi. Le decisioni reversibili si prendono in fretta — il costo di sbagliare è basso, il costo di rimuginare è certo.'
+    :'È una porta a un\u2019anta sola: va bene prendersi un momento in più. Ma un momento, non un\u2019altra stagione di pensieri.';
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><button class="text-btn danger" id="ddel">Elimina</button></div>
+    <div class="dview" style="justify-content:center;min-height:82vh;gap:14px">
+      <span class="eyebrow">${escapeHTML(d.question)}</span>
+      <div class="aside" style="text-align:left;padding:0;font-style:normal;color:var(--ink)">
+        Il tuo istinto dice: <i>«${escapeHTML(d.gut)}»</i>.<br>
+        Ti frena: <i>«${escapeHTML(d.brake)}»</i>.<br>
+        Tra un anno rimpiangeresti: <i>«${escapeHTML(d.regret)}»</i>.
+      </div>
+      <div class="aside" style="text-align:left;padding:0">${revNote}</div>
+      <span class="eyebrow gold" style="margin-top:8px">Allora: la tua decisione</span>
+      <input class="field" id="dec" placeholder="La scrivo in una frase, al presente" value="${escapeAttr(d.decision)}"/>
+      <span class="eyebrow gold" style="margin-top:8px">Due righe per il te di domani che vorrà riaprirla</span>
+      <textarea class="field" id="reason" placeholder="Il motivo, con le parole di adesso. Questo testo sarà il tuo argine.">${escapeHTML(d.reason)}</textarea>
+      <button class="btn solid" id="seal" style="margin-top:6px">Chiudo qui · Deciso</button>
+      <div class="aside">Decidere non è avere la certezza: è smettere di pagare l\u2019affitto a un pensiero.</div>
+    </div></div>`;
+  document.getElementById('back').onclick=()=>decisionFlow(d);
+  document.getElementById('ddel').onclick=async()=>{
+    const ok=await appModal({title:'Eliminare questa decisione?',body:'Domanda, risposte e motivazione andranno perse.',okLabel:'Elimina',danger:true});
+    if(!ok)return;
+    dstore.list=dstore.list.filter(x=>x.id!==d.id);
+    await persistDecisions();renderHome();
+  };
+  document.getElementById('seal').onclick=async()=>{
+    const decision=document.getElementById('dec').value.trim();
+    const reason=document.getElementById('reason').value.trim();
+    if(!decision){toast('Scrivi la decisione');return;}
+    if(!reason){toast('Il motivo è il tuo argine: due righe bastano');return;}
+    d.decision=decision;d.reason=reason;d.status='decided';d.decidedAt=Date.now();
+    if(!dstore.list.find(x=>x.id===d.id))dstore.list.push(d);
+    await persistDecisions();
+    toast('Decisione presa. Ora si va avanti. ✓');
+    activeTab='decisioni';renderHome();
+  };
+}
+function ruminationGate(d){
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><span></span></div>
+    <div class="gate">
+      <div class="gate-title">Ci sei già passato.<br>E hai deciso.</div>
+      <div class="sealed">
+        <div class="seal-dot"></div>
+        <span class="eyebrow gold">Il ${fmtDate(d.decidedAt)} hai scelto</span>
+        <div class="sealed-text">${escapeHTML(d.decision)}</div>
+        <div class="sealed-reason">«${escapeHTML(d.reason)}»</div>
+      </div>
+      ${d.reopens>0?`<div class="gate-sub">Hai già riaperto questa decisione ${d.reopens} ${d.reopens===1?'volta':'volte'}. Il punto d\u2019arrivo era sempre lo stesso.</div>`:''}
+      <div class="gate-sub"><b>Una sola domanda:</b> da quel giorno è successo un <b>fatto nuovo e concreto</b> — non un dubbio, non un\u2019ansia, un fatto?</div>
+      <button class="btn green-line" id="letgo">No, è il solito pensiero · lo lascio andare</button>
+      <button class="btn ghost" id="reopen">Sì, c\u2019è un fatto nuovo → riapri</button>
+    </div></div>`;
+  document.getElementById('back').onclick=renderHome;
+  document.getElementById('letgo').onclick=async()=>{
+    dstore.letGo++;await persistDecisions();
+    toast(`Rimuginio lasciato andare · ${dstore.letGo} in totale. Bravo.`);
+    renderHome();
+  };
+  document.getElementById('reopen').onclick=async()=>{
+    const fact=await appModal({title:'Qual è il fatto nuovo?',body:'Sarà salvato nella decisione, con la data di oggi.',input:true,placeholder:'Il fatto, in una frase',okLabel:'Riapri'});
+    if(!fact){toast('Senza un fatto concreto, resta chiusa.');return;}
+    d.reopens++;d.status='open';
+    d.facts=d.facts||[];
+    d.facts.push({ts:Date.now(),text:fact});
+    d.reversible=null; /* si ripassa dalla porta */
+    await persistDecisions();
+    decisionFlow(d);
+  };
+}
+
+/* ---- menu ---- */
+function openMenu(){
+  const ov=document.createElement('div');ov.className='sheet-overlay';
+  ov.innerHTML=`<div class="sheet">
+    <div class="sheet-title">Impostazioni</div>
+    <div class="sheet-item" data-a="pin"><b>Cambia PIN</b><span>Serve il PIN attuale. Tutto viene ricifrato con il nuovo.</span></div>
+    <div class="sheet-item" data-a="txt"><b>Esporta come testo (.txt)</b><span>Pensieri e decisioni in chiaro, per archiviare o stampare.</span></div>
+    <div class="sheet-item" data-a="enc"><b>Esporta cifrato (.diario)</b><span>Backup protetto, reimportabile solo con il tuo PIN.</span></div>
+    <div class="sheet-item" data-a="import"><b>Importa da file .diario</b><span>Ripristina un backup cifrato creato con questa app.</span></div>
+    <div class="sheet-item danger" data-a="cancel"><b>Annulla</b></div>
+  </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('show'));
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),250);};
+  ov.addEventListener('click',e=>{
+    if(e.target===ov){close();return;}
+    const item=e.target.closest('.sheet-item');if(!item)return;
+    const a=item.dataset.a;close();
+    setTimeout(()=>{
+      if(a==='pin')startChangePin();
+      else if(a==='txt')exportTxt();
+      else if(a==='enc')exportEncrypted();
+      else if(a==='import'){
+        let fi=document.getElementById('import-file');
+        if(!fi){activeTab='pensieri';renderHome();fi=document.getElementById('import-file');}
+        fi.click();
+      }
+    },260);
+  });
+}
+
+/* ---- export / import ---- */
+/* Salvataggio robusto.
+   - Nell'APK Capacitor: scrive il file con Filesystem (cartella Documenti,
+     visibile in File → Documenti/Documents) e apre il foglio Condividi.
+   - Da browser: prova il selettore "salva in…", poi condivisione, poi download.
+   Sempre con conferma finale in tema. */
+async function saveFile(filename,text,mime){
+  const cap=window.Capacitor;
+  const P=cap&&cap.Plugins;
+  // Rilevo l'app nativa in modo robusto: isNativePlatform OPPURE presenza dei plugin.
+  const isNative=!!(cap&&((cap.isNativePlatform&&cap.isNativePlatform())|| (P&&P.Filesystem)));
+
+  if(isNative&&P&&P.Filesystem){
+    try{
+      const Filesystem=P.Filesystem;
+      const res=await Filesystem.writeFile({
+        path:filename,
+        data:text,
+        directory:'DOCUMENTS',
+        encoding:'utf8'
+      });
+      let shared=false;
+      if(P.Share){
+        try{
+          await P.Share.share({title:filename,text:'Backup Diario',url:res.uri});
+          shared=true;
+        }catch(_){/* chiuso o non disponibile */}
+      }
+      await appModal({title:'Backup salvato ✓',
+        body:`«${filename}» è nella cartella <b>Documenti</b> del telefono (app File → Documenti).${shared?'':' Da lì puoi copiarlo o spostarlo dove vuoi.'}`,
+        okLabel:'Bene',okOnly:true});
+      return;
+    }catch(err){
+      await appModal({title:'Salvataggio non riuscito',body:'Non sono riuscito a scrivere il file nella cartella Documenti. Controlla lo spazio libero e riprova.',okLabel:'Ok',okOnly:true});
+      return;
+    }
+  }
+
+  // ---- solo browser puro (non app) ----
+  if(window.showSaveFilePicker){
+    try{
+      const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'File Diario',accept:{[mime]:['.'+filename.split('.').pop()]}}]});
+      const w=await handle.createWritable();
+      await w.write(new Blob([text],{type:mime}));
+      await w.close();
+      await appModal({title:'Salvato ✓',body:`«${filename}» è stato salvato dove hai scelto.`,okLabel:'Bene',okOnly:true});
+      return;
+    }catch(err){ if(err&&err.name==='AbortError')return; }
+  }
+  const blob=new Blob([text],{type:mime});
+  const file=new File([blob],filename,{type:mime});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file],title:filename}); return; }
+    catch(err){ if(err&&err.name==='AbortError')return; }
+  }
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+  await appModal({title:'File pronto',body:`«${filename}» è stato scaricato. Di norma è nella cartella <b>Download</b> (app File → Download).`,okLabel:'Capito',okOnly:true});
+}
+function stamp(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+async function exportTxt(){
+  if(!entries.length&&!dstore.list.length){toast('Il diario è vuoto');return;}
+  let out=`DIARIO — esportato il ${new Date().toLocaleString('it-IT')}\n\n`;
+  if(entries.length){
+    out+='═══════════ PENSIERI ═══════════\n\n';
+    [...entries].sort((a,b)=>a.updated-b.updated).forEach(e=>{
+      out+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${new Date(e.updated).toLocaleString('it-IT',{day:'numeric',month:'long',year:'numeric'})}\n${e.title||'Senza titolo'}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${e.body||''}\n\n`;
+    });
+  }
+  if(dstore.list.length){
+    out+='═══════════ DECISIONI ═══════════\n\n';
+    dstore.list.forEach(d=>{
+      out+=`❓ ${d.question}\n`;
+      if(d.gut)out+=`   Istinto: ${d.gut}\n`;
+      if(d.brake)out+=`   Freno: ${d.brake}\n`;
+      if(d.regret)out+=`   Rimpianto a un anno: ${d.regret}\n`;
+      if(d.reversible===true)out+=`   Reversibile: sì\n`;
+      if(d.reversible===false)out+=`   Reversibile: no\n`;
+      if(d.facts&&d.facts.length)d.facts.forEach(f=>out+=`   ⟲ Fatto nuovo (${fmtDate(f.ts)}): ${f.text}\n`);
+      if(d.status==='decided')out+=`   ✓ DECISO il ${fmtDate(d.decidedAt)}: ${d.decision}\n   Motivo: ${d.reason}\n`;
+      else out+=`   (ancora in cammino)\n`;
+      out+='\n';
+    });
+  }
+  await saveFile(`Diario_${stamp()}.txt`,out,'text/plain');
+}
+async function exportEncrypted(){
+  if(!entries.length&&!dstore.list.length){toast('Il diario è vuoto');return;}
+  const blob=await encryptJSON(cryptoKey,{entries,decisions:dstore});
+  const pack=JSON.stringify({app:'Diario',v:2,salt:Store.get(KEY_SALT),data:JSON.parse(blob)});
+  await saveFile(`Diario_${stamp()}.diario`,pack,'application/json');
+}
+async function onImportFile(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const pack=JSON.parse(text);
+    if(pack.app!=='Diario'||!pack.data||!pack.salt) throw new Error('formato');
+    const p=await appModal({title:'PIN del backup',body:'Inserisci il PIN con cui era stato creato quel file.',input:true,placeholder:'····',inputMode:'numeric',okLabel:'Importa'})||'';
+    const key=await deriveKey(p,unb64(pack.salt));
+    const imported=await decryptJSON(key,JSON.stringify(pack.data));
+    let impEntries=[],impDecisions=null;
+    if(Array.isArray(imported)){impEntries=imported;}
+    else{impEntries=imported.entries||[];impDecisions=imported.decisions;}
+    const byId={};[...entries,...impEntries].forEach(e=>{byId[e.id]=e;});
+    entries=Object.values(byId);
+    if(impDecisions){
+      const dById={};[...dstore.list,...(impDecisions.list||[])].forEach(d=>{dById[d.id]=d;});
+      dstore.list=Object.values(dById);
+      dstore.letGo=Math.max(dstore.letGo,impDecisions.letGo||0);
+    }
+    await persistEntries();await persistDecisions();
+    toast(`Importato: ${impEntries.length} pensieri${impDecisions?`, ${impDecisions.list.length} decisioni`:''}`);
+    renderHome();
+  }catch(err){
+    appModal({title:'Import non riuscito',body:'Verifica che sia un file .diario di questa app e che il PIN sia quello con cui è stato creato il backup.',okLabel:'Capito',okOnly:true});
+  }
+}
+
+/* ---- swipe per eliminare (touch + mouse, rispetta lo scroll verticale) ---- */
+const REVEAL=86;
+function bindSwipeList({onOpen,onDelete}){
+  document.querySelectorAll('.item[data-id]').forEach(item=>{
+    const inner=item.querySelector('.item-inner');
+    const del=item.querySelector('.swipe-del');
+    let startX=0,startY=0,base=0,dx=0,mode=null,open=false;
+    const setX=(x,anim)=>{inner.style.transition=anim?'transform .18s ease':'none';inner.style.transform=`translateX(${x}px)`;};
+    inner.addEventListener('pointerdown',e=>{
+      startX=e.clientX;startY=e.clientY;base=open?-REVEAL:0;dx=base;mode='pending';
+    });
+    inner.addEventListener('pointermove',e=>{
+      if(!mode)return;
+      const mx=e.clientX-startX,my=e.clientY-startY;
+      if(mode==='pending'){
+        if(Math.abs(my)>8&&Math.abs(my)>Math.abs(mx)){mode=null;return;}   /* scroll verticale: lascio fare al browser */
+        if(Math.abs(mx)>8){mode='drag';inner.setPointerCapture(e.pointerId);}
+        else return;
+      }
+      dx=Math.max(-REVEAL-24,Math.min(0,base+mx));
+      setX(dx,false);
+    });
+    const finish=()=>{
+      if(mode!=='drag'){mode=null;return;}
+      mode=null;
+      open=dx<-REVEAL/2;
+      setX(open?-REVEAL:0,true);
+    };
+    inner.addEventListener('pointerup',finish);
+    inner.addEventListener('pointercancel',finish);
+    inner.addEventListener('click',e=>{
+      if(open){open=false;setX(0,true);e.stopPropagation();return;}  /* un tocco richiude */
+      if(Math.abs(dx-base)>6){e.stopPropagation();return;}           /* era un drag, non un tap */
+      onOpen(item.dataset.id);
+    });
+    del.addEventListener('click',e=>{e.stopPropagation();onDelete(del.dataset.del);});
+  });
+}
+
+/* ---- utils ---- */
+function rid(){return b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[^a-zA-Z0-9]/g,'').slice(0,12);}
+function escapeHTML(s=''){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s=''){return escapeHTML(s).replace(/"/g,'&quot;');}
+
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&cryptoKey){ lockNow(); } });
+boot();
+</script>
+</body>
+</html>

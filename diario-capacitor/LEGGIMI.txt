@@ -1,0 +1,55 @@
+# Diario — installazione da zero (Windows)
+
+Segui questi passi UNA VOLTA. Il grosso lo fa uno script.
+
+## Passo 1 — Estrai
+Scompatta lo zip in una cartella semplice, es. `C:\diario`.
+Dentro trovi `setup.bat`, `www`, `icona`, `package.json`.
+
+## Passo 2 — Apri il terminale nella cartella
+Apri la cartella `diario` in Esplora file.
+Clicca nella barra dell'indirizzo in alto, scrivi `cmd`, premi Invio.
+(IMPORTANTE: deve essere il Prompt dei comandi `cmd`, NON PowerShell,
+altrimenti npm viene bloccato.)
+
+## Passo 3 — Lancia lo script
+Scrivi:
+
+    setup.bat
+
+e premi Invio. Lo script fa da solo, in ordine:
+1. npm install            (scarica Capacitor e i plugin)
+2. npx cap add android    (crea il progetto Android)
+3. copia l'ICONA giusta nel progetto
+4. npx cap sync           (collega tutto)
+5. verifica che l'icona sia a posto
+6. apre Android Studio
+
+Se un passo da' errore, lo script si ferma e te lo dice.
+
+## Passo 4 — In Android Studio
+Aspetta che finisca la barra "Gradle sync" in basso. Poi:
+- Build > Clean Project        (aspetta)
+- Build > Generate App Bundles or APKs > Generate APKs
+
+Quando finisce, clicca "locate" nella notifica in basso a destra:
+si apre la cartella con `app-debug.apk`.
+Percorso completo:
+  android\app\build\outputs\apk\debug\app-debug.apk
+
+## Passo 5 — Installa sul telefono
+Copia `app-debug.apk` sul telefono, aprilo, premi "Aggiorna" (o installa).
+Se l'icona resta quella vecchia: togli l'app dalla home, riaprila dal
+cassetto app, e se serve riavvia il telefono (il launcher tiene l'icona
+in cache per qualche minuto).
+
+## Aggiornamenti futuri
+Quando ti do una nuova versione, di solito basta sostituire `www\index.html`,
+poi:
+    npx cap sync
+e in Android Studio: Build > Clean Project > Generate APKs.
+
+## Note
+- NON lanciare "capacitor-assets generate": l'icona ora e' gia' quella
+  giusta dentro la cartella `icona`, applicata dallo script.
+- L'export dei backup salva in File > Documenti del telefono.

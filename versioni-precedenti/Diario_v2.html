@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0d1017" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Diario" />
+<title>Diario</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1017'/%3E%3Ctext x='50%25' y='60%25' font-family='Georgia,serif' font-size='36' fill='%23c8a15a' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E" />
+<style>
+:root{
+  --bg:#0d1017;--bg-raised:#151a24;--bg-input:#1c222f;--line:#252c3b;
+  --ink:#e9e6df;--ink-soft:#98a0af;--ink-faint:#5a616f;
+  --accent:#c8a15a;--accent-dim:#8a6f3d;--accent-soft:rgba(200,161,90,.12);
+  --flow:#6fa8b8;--flow-dim:rgba(111,168,184,.14);
+  --danger:#cf6b5a;--radius:16px;
+  --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font-body);height:100%;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#app{min-height:100vh;display:flex;flex-direction:column;max-width:520px;margin:0 auto}
+
+/* ---- onde di flusso (firma visiva) ---- */
+.flow-band{position:relative;height:56px;overflow:hidden;flex:none}
+.flow-band svg{position:absolute;inset:0;width:200%;height:100%}
+.flow-band path{fill:none;stroke-width:1.5;opacity:.5}
+.w1{stroke:var(--flow);animation:drift 26s linear infinite}
+.w2{stroke:var(--accent-dim);animation:drift 38s linear infinite reverse;opacity:.35}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.w1,.w2{animation:none}}
+
+/* ---- lock / setup ---- */
+.lock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:26px;min-height:100vh}
+.lock-brand{font-family:var(--font-serif);font-size:36px;letter-spacing:.5px}
+.lock-brand span{color:var(--accent)}
+.lock-sub{color:var(--ink-soft);font-size:15px;text-align:center;margin-top:-14px;line-height:1.5;max-width:280px}
+.pin-dots{display:flex;gap:16px;height:18px;align-items:center}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--accent-dim);transition:transform .12s,background .12s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.08)}
+.pin-error{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,74px);gap:16px;margin-top:4px}
+.key{height:74px;width:74px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--line);color:var(--ink);font-size:28px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s,transform .06s}
+.key:active{background:var(--bg-input);transform:scale(.94)}
+.key.blank{background:none;border:none;pointer-events:none}
+.key.action{font-size:20px;color:var(--ink-soft)}
+.lock-msg{color:var(--danger);font-size:14px;height:18px;text-align:center}
+.lock-cancel{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:8px}
+
+/* ---- home ---- */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.topbar h1{font-family:var(--font-serif);font-size:24px;font-weight:500}
+.topbar h1 span{color:var(--accent)}
+.icon-btn{background:none;border:none;color:var(--ink-soft);font-size:21px;cursor:pointer;padding:6px;line-height:1}
+.stats{display:flex;gap:10px;padding:4px 16px 14px}
+.stat{flex:1;background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.stat-num{font-family:var(--font-serif);font-size:24px;color:var(--accent)}
+.stat-num.flow-c{color:var(--flow)}
+.stat-label{font-size:12px;color:var(--ink-soft);margin-top:2px;letter-spacing:.2px}
+.nudge{margin:0 16px 14px;background:var(--flow-dim);border:1px solid rgba(111,168,184,.25);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:transform .1s}
+.nudge:active{transform:scale(.985)}
+.nudge-eyebrow{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--flow);margin-bottom:5px}
+.nudge-text{font-family:var(--font-serif);font-size:17px;line-height:1.45;color:var(--ink)}
+.list{flex:1;padding:0 16px 110px;display:flex;flex-direction:column;gap:10px}
+.list-title{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);margin:6px 4px 2px}
+.entry{background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px 13px;cursor:pointer;transition:border-color .15s}
+.entry:active{border-color:var(--accent-dim)}
+.entry-date{color:var(--accent);font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+.entry-title{font-family:var(--font-serif);font-size:18px;margin:5px 0 4px}
+.entry-preview{color:var(--ink-soft);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.entry-words{font-size:11px;color:var(--ink-faint);margin-top:8px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--ink-faint);padding:44px 24px;text-align:center}
+.empty-serif{font-family:var(--font-serif);font-size:21px;color:var(--ink-soft);line-height:1.5}
+.fab{position:fixed;right:calc(50% - 260px + 20px);bottom:calc(24px + env(safe-area-inset-bottom));height:58px;padding:0 26px;border-radius:29px;background:var(--accent);color:#1a1204;border:none;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+@media(max-width:560px){.fab{right:20px}}
+.fab:active{transform:scale(.95)}
+
+/* ---- editor ---- */
+.editor{flex:1;display:flex;flex-direction:column;min-height:100vh}
+.editor-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.editor-body{flex:1;padding:10px 22px 40px;display:flex;flex-direction:column}
+.editor-date{color:var(--accent);font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+.editor-count{font-size:12px;color:var(--ink-faint);transition:color .3s}
+.editor-count.alive{color:var(--flow)}
+.editor-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.editor-title{background:none;border:none;color:var(--ink);width:100%;font-family:var(--font-serif);font-size:26px;outline:none;margin-bottom:8px}
+.editor-title::placeholder{color:var(--ink-faint)}
+.editor-text{background:none;border:none;color:var(--ink);width:100%;flex:1;font-size:17px;line-height:1.7;outline:none;resize:none;min-height:300px;font-family:var(--font-body)}
+.editor-text::placeholder{color:var(--ink-faint)}
+.text-btn{background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:6px 4px}
+.text-btn.muted{color:var(--ink-soft)}.text-btn.danger{color:var(--danger)}
+.setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:22px;min-height:100vh}
+
+/* ---- sheet / toast ---- */
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--bg-input);color:var(--ink);border:1px solid var(--line);padding:12px 20px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:40;white-space:nowrap}
+.toast.show{opacity:1}
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;display:flex;align-items:flex-end;opacity:0;transition:opacity .2s}
+.sheet-overlay.show{opacity:1}
+.sheet{width:100%;max-width:520px;margin:0 auto;background:var(--bg-raised);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid var(--line);padding:10px 16px calc(24px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s}
+.sheet-overlay.show .sheet{transform:translateY(0)}
+.sheet-grip{width:40px;height:4px;border-radius:2px;background:var(--ink-faint);margin:6px auto 14px}
+.sheet-title{font-family:var(--font-serif);font-size:18px;margin:0 4px 6px}
+.sheet-item{display:flex;flex-direction:column;gap:2px;padding:13px 8px;border-radius:12px;cursor:pointer}
+.sheet-item:active{background:var(--bg-input)}
+.sheet-item b{font-size:16px;font-weight:500;color:var(--ink)}
+.sheet-item span{font-size:13px;color:var(--ink-soft);line-height:1.4}
+.sheet-item.danger b{color:var(--danger)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   Diario — svuota la testa, un pensiero alla volta.
+   Tutto locale, tutto cifrato (AES-GCM 256, PBKDF2 200k dal PIN).
+   ============================================================ */
+
+const Store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ alert('Impossibile salvare. Se sei in navigazione privata, i dati non vengono conservati.'); } },
+  remove(k){ try { localStorage.removeItem(k); } catch {} },
+};
+const KEY_VERIFIER='diario.verifier',KEY_SALT='diario.salt',KEY_ENTRIES='diario.entries';
+
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptJSON(key,obj){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(obj)));
+  return JSON.stringify({iv:b64(iv),ct:b64(ct)});
+}
+async function decryptJSON(key,blob){
+  const {iv,ct}=JSON.parse(blob);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(iv)},key,unb64(ct));
+  return JSON.parse(dec.decode(pt));
+}
+
+const app=document.getElementById('app');
+let cryptoKey=null,entries=[],editing=null;
+
+function toast(m){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2200);}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});}
+function wordCount(s=''){const m=s.trim().match(/\S+/g);return m?m.length:0;}
+function dayKey(ts){const d=new Date(ts);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;}
+
+/* ---- gamification: streak e parole ---- */
+function computeStreak(){
+  const days=new Set(entries.map(e=>dayKey(e.created)));
+  if(!days.size)return 0;
+  let streak=0;const d=new Date();
+  if(!days.has(dayKey(d.getTime()))) d.setDate(d.getDate()-1); // il giorno può essere ancora "aperto"
+  while(days.has(dayKey(d.getTime()))){streak++;d.setDate(d.getDate()-1);}
+  return streak;
+}
+function totalWords(){return entries.reduce((n,e)=>n+wordCount(e.title)+wordCount(e.body),0);}
+function wroteToday(){return entries.some(e=>dayKey(e.created)===dayKey(Date.now()));}
+
+/* ---- spunti per iniziare a scrivere ---- */
+const PROMPTS=[
+ 'Cosa ti gira in testa proprio adesso? Scrivilo così com\u2019è, senza ordinarlo.',
+ 'Qual è il pensiero che oggi è tornato più volte? Mettilo su carta e lascialo lì.',
+ 'Scrivi tre righe su come stai. Nessuno le leggerà: sii onesto.',
+ 'C\u2019è qualcosa che stai rimandando? Descrivi solo il primo passo.',
+ 'Che cosa ti ha fatto sorridere oggi, anche di poco?',
+ 'Se potessi togliere un peso dalla testa stasera, quale sarebbe?',
+ 'Descrivi questa giornata in una frase. Poi, se viene, continua.',
+ 'Cosa diresti a te stesso di stamattina, ora che sai com\u2019è andata?',
+ 'Scrivi la cosa che non stai dicendo a nessuno.',
+ 'Un rumore, un odore, un\u2019immagine di oggi: parti da lì.',
+ 'Che cosa vorresti lasciare fuori dalla porta prima di dormire?',
+ 'Di cosa sei stanco? Di cosa, invece, non ti stanchi mai?',
+ 'Se la tua mente fosse un cielo, che tempo fa lì dentro adesso?',
+ 'Qual è la piccola vittoria di oggi che nessuno ha visto?',
+];
+function todayPrompt(){
+  const d=new Date();const seed=d.getFullYear()*372+(d.getMonth()+1)*31+d.getDate();
+  return PROMPTS[seed%PROMPTS.length];
+}
+
+function boot(){ Store.get(KEY_VERIFIER)?renderLock():renderSetup(); }
+
+/* ---- keypad condiviso ---- */
+function dotsHTML(n){return [0,1,2,3].map(i=>`<div class="pin-dot ${i<n?'filled':''}"></div>`).join('');}
+function keypadHTML(){const keys=[1,2,3,4,5,6,7,8,9,'blank',0,'del'];return `<div class="keypad">${keys.map(k=>{if(k==='blank')return `<div class="key blank"></div>`;if(k==='del')return `<button class="key action" data-key="del">⌫</button>`;return `<button class="key" data-key="${k}">${k}</button>`;}).join('')}</div>`;}
+function bindKeypad(onDigit,onDel){document.querySelectorAll('.key[data-key]').forEach(btn=>btn.addEventListener('click',()=>{const k=btn.dataset.key;k==='del'?onDel():onDigit(k);}));}
+
+/* Schermata PIN generica: chiede 4 cifre e chiama onComplete(pin).
+   onComplete restituisce true se ok, altrimenti stringa d'errore per riprovare. */
+function pinScreen({title,sub,onComplete,onCancel}){
+  app.innerHTML=`<div class="lock">
+    <div class="lock-brand">${title}</div>
+    <p class="lock-sub">${sub}</p>
+    <div class="pin-dots" id="dots">${dotsHTML(0)}</div>
+    <div class="lock-msg" id="msg"></div>
+    ${keypadHTML()}
+    ${onCancel?'<button class="lock-cancel" id="cancel">Annulla</button>':''}
+  </div>`;
+  let pin='';
+  const dotsEl=()=>document.getElementById('dots');
+  const dots=()=>dotsEl().innerHTML=dotsHTML(pin.length);
+  const msg=m=>document.getElementById('msg').textContent=m||'';
+  if(onCancel)document.getElementById('cancel').onclick=onCancel;
+  bindKeypad(d=>{if(pin.length<4){pin+=d;dots();if(pin.length===4)setTimeout(done,150);}},()=>{pin=pin.slice(0,-1);dots();});
+  async function done(){
+    const res=await onComplete(pin);
+    if(res!==true){
+      dotsEl().classList.add('pin-error');msg(res||'Riprova');
+      setTimeout(()=>{pin='';dots();dotsEl().classList.remove('pin-error');msg('');},750);
+    }
+  }
+}
+
+/* ---- setup primo PIN ---- */
+function renderSetup(){
+  let first=null;
+  const step1=()=>pinScreen({
+    title:'Dia<span>rio</span>',
+    sub:'Questo è il tuo spazio per svuotare la testa.<br>Scegli un PIN di 4 cifre per proteggerlo.',
+    onComplete:async(pin)=>{first=pin;step2();return true;}
+  });
+  const step2=()=>pinScreen({
+    title:'Dia<span>rio</span>',
+    sub:'Ripeti il PIN per conferma.',
+    onComplete:async(pin)=>{
+      if(pin!==first){step1();return 'I PIN non coincidono';}
+      await createVault(pin);return true;
+    }
+  });
+  step1();
+}
+async function createVault(pin){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const key=await deriveKey(pin,salt);
+  Store.set(KEY_SALT,b64(salt));
+  Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+  Store.set(KEY_ENTRIES,await encryptJSON(key,[]));
+  cryptoKey=key;entries=[];renderJournal();
+}
+
+/* ---- sblocco ---- */
+function renderLock(){
+  pinScreen({
+    title:'Dia<span>rio</span>',
+    sub:'Inserisci il PIN',
+    onComplete:async(pin)=>{
+      const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+      try{
+        await decryptJSON(key,Store.get(KEY_VERIFIER));
+        cryptoKey=key;
+        entries=await decryptJSON(key,Store.get(KEY_ENTRIES));
+        renderJournal();return true;
+      }catch{return 'PIN errato';}
+    }
+  });
+}
+function lockNow(){cryptoKey=null;entries=[];editing=null;renderLock();}
+
+/* ---- cambio PIN ---- */
+function startChangePin(){
+  let newPin=null;
+  const back=()=>renderJournal();
+  const stepOld=()=>pinScreen({
+    title:'Cambia <span>PIN</span>',
+    sub:'Inserisci il PIN attuale.',
+    onCancel:back,
+    onComplete:async(pin)=>{
+      const key=await deriveKey(pin,unb64(Store.get(KEY_SALT)));
+      try{await decryptJSON(key,Store.get(KEY_VERIFIER));stepNew();return true;}
+      catch{return 'PIN errato';}
+    }
+  });
+  const stepNew=()=>pinScreen({
+    title:'Cambia <span>PIN</span>',
+    sub:'Scegli il nuovo PIN di 4 cifre.',
+    onCancel:back,
+    onComplete:async(pin)=>{newPin=pin;stepConfirm();return true;}
+  });
+  const stepConfirm=()=>pinScreen({
+    title:'Cambia <span>PIN</span>',
+    sub:'Ripeti il nuovo PIN per conferma.',
+    onCancel:back,
+    onComplete:async(pin)=>{
+      if(pin!==newPin){stepNew();return 'I PIN non coincidono';}
+      // ricifra tutto con nuovo salt + nuova chiave
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const key=await deriveKey(pin,salt);
+      Store.set(KEY_SALT,b64(salt));
+      Store.set(KEY_VERIFIER,await encryptJSON(key,{ok:true,v:1}));
+      Store.set(KEY_ENTRIES,await encryptJSON(key,entries));
+      cryptoKey=key;
+      toast('PIN aggiornato');
+      renderJournal();return true;
+    }
+  });
+  stepOld();
+}
+
+/* ---- home ---- */
+function flowBandHTML(){
+  return `<div class="flow-band" aria-hidden="true"><svg viewBox="0 0 1040 56" preserveAspectRatio="none">
+    <path class="w1" d="M0,32 C65,18 130,46 195,32 C260,18 325,46 390,32 C455,18 520,46 585,32 C650,18 715,46 780,32 C845,18 910,46 975,32 C1010,25 1025,28 1040,32"/>
+    <path class="w2" d="M0,40 C80,28 160,50 240,40 C320,30 400,52 480,40 C560,28 640,50 720,40 C800,30 880,52 960,40 C1000,35 1020,37 1040,40"/>
+  </svg></div>`;
+}
+function renderJournal(){
+  const sorted=[...entries].sort((a,b)=>b.updated-a.updated);
+  const streak=computeStreak();
+  const words=totalWords();
+  const today=wroteToday();
+  const listHTML=sorted.length
+    ?`<div class="list-title">I tuoi pensieri</div>`+sorted.map(e=>{
+        const w=wordCount(e.title)+wordCount(e.body);
+        return `<div class="entry" data-id="${e.id}"><div class="entry-date">${fmtDate(e.updated)}</div><div class="entry-title">${escapeHTML(e.title||'Senza titolo')}</div><div class="entry-preview">${escapeHTML(e.body||'')}</div><div class="entry-words">${w} parole liberate</div></div>`;
+      }).join('')
+    :`<div class="empty"><div class="empty-serif">La pagina è bianca,<br>la testa no.</div><div>Inizia da qui sotto: bastano due righe.</div></div>`;
+
+  app.innerHTML=`
+    <div class="topbar"><h1>Dia<span>rio</span></h1><div style="display:flex;gap:2px"><button class="icon-btn" id="menu-btn" title="Impostazioni">⋯</button><button class="icon-btn" id="lock-btn" title="Blocca">🔒</button></div></div>
+    ${flowBandHTML()}
+    <div class="stats">
+      <div class="stat"><div class="stat-num">${streak}</div><div class="stat-label">${streak===1?'giorno di fila':'giorni di fila'}${today?' ✓':''}</div></div>
+      <div class="stat"><div class="stat-num flow-c">${words.toLocaleString('it-IT')}</div><div class="stat-label">parole liberate</div></div>
+    </div>
+    <div class="nudge" id="nudge">
+      <div class="nudge-eyebrow">${today?'Ancora qualcosa da dire?':'Spunto di oggi'}</div>
+      <div class="nudge-text">${todayPrompt()}</div>
+    </div>
+    <div class="list">${listHTML}</div>
+    <button class="fab" id="new-btn">✎&nbsp; Svuota la testa</button>
+    <input type="file" id="import-file" accept=".diario,.txt,application/json,text/plain" style="display:none">`;
+
+  document.getElementById('new-btn').onclick=()=>openEditor(null);
+  document.getElementById('nudge').onclick=()=>openEditor(null,todayPrompt());
+  document.getElementById('lock-btn').onclick=lockNow;
+  document.getElementById('menu-btn').onclick=openMenu;
+  document.getElementById('import-file').onchange=onImportFile;
+  document.querySelectorAll('.entry').forEach(el=>el.onclick=()=>openEditor(entries.find(x=>x.id===el.dataset.id)));
+}
+
+/* ---- editor ---- */
+function openEditor(entry,promptHint){
+  editing=entry;const isNew=!entry;const ts=entry?entry.updated:Date.now();
+  const placeholder=promptHint||'Scrivi come viene. Qui non serve ordine.';
+  app.innerHTML=`<div class="editor">
+    <div class="editor-bar"><button class="text-btn muted" id="back">‹ Indietro</button><button class="text-btn" id="save">Salva</button></div>
+    <div class="editor-body">
+      <div class="editor-meta"><div class="editor-date">${fmtDate(ts)}</div><div class="editor-count" id="count"></div></div>
+      <input class="editor-title" id="title" placeholder="Titolo (facoltativo)" value="${entry?escapeAttr(entry.title):''}"/>
+      <textarea class="editor-text" id="body" placeholder="${escapeAttr(placeholder)}">${entry?escapeHTML(entry.body):''}</textarea>
+      ${isNew?'':'<button class="text-btn danger" id="del" style="margin-top:20px;align-self:flex-start">Elimina voce</button>'}
+    </div></div>`;
+  const bodyEl=document.getElementById('body');
+  const countEl=document.getElementById('count');
+  const baseWords=entry?wordCount(entry.title)+wordCount(entry.body):0;
+  const updateCount=()=>{
+    const w=wordCount(document.getElementById('title').value)+wordCount(bodyEl.value);
+    countEl.textContent=w?`${w} parole`:'';
+    countEl.classList.toggle('alive',w>baseWords);
+  };
+  bodyEl.addEventListener('input',updateCount);
+  document.getElementById('title').addEventListener('input',updateCount);
+  updateCount();
+  document.getElementById('back').onclick=renderJournal;
+  document.getElementById('save').onclick=saveEntry;
+  const d=document.getElementById('del');if(d)d.onclick=deleteEntry;
+}
+async function persist(){ Store.set(KEY_ENTRIES,await encryptJSON(cryptoKey,entries)); }
+async function saveEntry(){
+  const title=document.getElementById('title').value.trim();
+  const body=document.getElementById('body').value.trim();
+  if(!title&&!body){renderJournal();return;}
+  const before=editing?wordCount(editing.title)+wordCount(editing.body):0;
+  if(editing){editing.title=title;editing.body=body;editing.updated=Date.now();}
+  else{entries.push({id:rid(),title,body,created:Date.now(),updated:Date.now()});}
+  await persist();
+  const gained=Math.max(0,wordCount(title)+wordCount(body)-before);
+  const streak=computeStreak();
+  if(gained>0)toast(`+${gained} parole liberate · ${streak} ${streak===1?'giorno':'giorni'} di fila`);
+  else toast('Salvato');
+  renderJournal();
+}
+async function deleteEntry(){
+  if(!editing)return;
+  if(!confirm('Eliminare definitivamente questa voce?'))return;
+  entries=entries.filter(e=>e.id!==editing.id);
+  await persist();toast('Voce eliminata');renderJournal();
+}
+
+/* ---- menu impostazioni ---- */
+function openMenu(){
+  const ov=document.createElement('div');ov.className='sheet-overlay';
+  ov.innerHTML=`<div class="sheet"><div class="sheet-grip"></div>
+    <div class="sheet-title">Impostazioni</div>
+    <div class="sheet-item" data-a="pin"><b>Cambia PIN</b><span>Serve il PIN attuale. Tutte le voci vengono ricifrate con il nuovo.</span></div>
+    <div class="sheet-item" data-a="txt"><b>Esporta come testo (.txt)</b><span>File leggibile in chiaro, per archiviare o stampare.</span></div>
+    <div class="sheet-item" data-a="enc"><b>Esporta cifrato (.diario)</b><span>Backup protetto, reimportabile solo con il tuo PIN.</span></div>
+    <div class="sheet-item" data-a="import"><b>Importa da file .diario</b><span>Ripristina un backup cifrato creato con questa app.</span></div>
+    <div class="sheet-item danger" data-a="cancel"><b>Annulla</b></div>
+  </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('show'));
+  const close=()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),250);};
+  ov.addEventListener('click',e=>{
+    if(e.target===ov){close();return;}
+    const item=e.target.closest('.sheet-item');if(!item)return;
+    const a=item.dataset.a;close();
+    setTimeout(()=>{
+      if(a==='pin')startChangePin();
+      else if(a==='txt')exportTxt();
+      else if(a==='enc')exportEncrypted();
+      else if(a==='import')document.getElementById('import-file').click();
+    },260);
+  });
+}
+
+/* ---- export / import ---- */
+function downloadBlob(filename,text,mime){
+  const blob=new Blob([text],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+}
+function stamp(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function exportTxt(){
+  if(!entries.length){toast('Il diario è vuoto');return;}
+  const sorted=[...entries].sort((a,b)=>a.updated-b.updated);
+  const body=sorted.map(e=>{
+    const data=new Date(e.updated).toLocaleString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+    return `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${data}\n${e.title||'Senza titolo'}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${e.body||''}\n`;
+  }).join('\n');
+  const header=`DIARIO — esportato il ${new Date().toLocaleString('it-IT')}\n${sorted.length} voci · ${totalWords()} parole\n\n`;
+  downloadBlob(`Diario_${stamp()}.txt`,header+body,'text/plain;charset=utf-8');
+  toast('Esportato in .txt');
+}
+async function exportEncrypted(){
+  if(!entries.length){toast('Il diario è vuoto');return;}
+  const blob=await encryptJSON(cryptoKey,entries);
+  const pack=JSON.stringify({app:'Diario',v:1,salt:Store.get(KEY_SALT),data:JSON.parse(blob)});
+  downloadBlob(`Diario_${stamp()}.diario`,pack,'application/json');
+  toast('Backup cifrato creato');
+}
+async function onImportFile(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  ev.target.value='';
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const pack=JSON.parse(text);
+    if(pack.app!=='Diario'||!pack.data||!pack.salt) throw new Error('formato');
+    const p=prompt('Inserisci il PIN con cui è stato creato quel backup:')||'';
+    const key=await deriveKey(p,unb64(pack.salt));
+    const imported=await decryptJSON(key,JSON.stringify(pack.data));
+    if(!Array.isArray(imported)) throw new Error('contenuto');
+    const byId={};[...entries,...imported].forEach(e=>{byId[e.id]=e;});
+    entries=Object.values(byId);
+    await persist();
+    toast(`Importate ${imported.length} voci`);
+    renderJournal();
+  }catch(err){
+    alert('Import non riuscito. Verifica che sia un file .diario di questa app e che il PIN sia quello con cui è stato creato il backup.');
+  }
+}
+
+/* ---- utils ---- */
+function rid(){return b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[^a-zA-Z0-9]/g,'').slice(0,12);}
+function escapeHTML(s=''){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s=''){return escapeHTML(s).replace(/"/g,'&quot;');}
+
+/* blocca se l'app va in background */
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&cryptoKey){ lockNow(); } });
+
+boot();
+</script>
+</body>
+</html>
